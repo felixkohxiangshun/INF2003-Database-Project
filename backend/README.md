@@ -55,8 +55,3 @@ NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
 FLASK_SECRET_KEY, FLASK_DEBUG
 ```
 
-## Report section to write
-
-- System architecture diagram (how Flask connects to both DBs)
-- How the dual-write pattern works and its trade-offs
-- Login / session management approach
