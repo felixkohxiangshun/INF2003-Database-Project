@@ -73,53 +73,51 @@ INF2003 Database Project/
 
 ### 1. Clone the repo
 
-### 2. Set up Python environment
+### 2. Create your Branch
+
+Work on your own branch and open a pull request to `main` when ready.
+
+```bash
+git checkout -b m2/sql-queries    # M2 runs this
+git checkout -b m3/neo4j-setup    # M3 runs this
+git checkout -b m4/backend        # M4 runs this
+git checkout -b m5/frontend       # M5 runs this
+```
+
+### 3. Set up Python environment (M4)
 ```bash
 python3 -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip3 install -r requirements.txt
 ```
 
-### 3. Configure environment variables
+### 4. Configure environment variables (M2 & M3)
 ```bash
 cp .env.example .env
 # Edit .env with your PostgreSQL and Neo4j credentials
 ```
 
-### 4. Create the database
+### 5. Create the database (SKIP)
 ```bash
 createdb music_streaming        # or use pgAdmin
 psql -d music_streaming -f sql/schema.sql
 psql -d music_streaming -f sql/triggers.sql
 ```
 
-### 5. Download the dataset
+### 6. Download the dataset (COMPLETED)
 Download **Spotify Tracks Dataset** from Kaggle:
 https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset
 
 Place `dataset.csv` inside the `data/` folder (already gitignored).
 
-### 6. Seed the database
+### 7. Seed the database (SKIP)
 ```bash
 python3 sql/seed.py
 ```
 
-### 7. Run the app (once M4 is ready)
+### 8. Run the app (once M4 is ready)
 ```bash
 python3 backend/app.py
-```
-
-## Branching convention
-
-Work on your own branch and open a pull request to `main` when ready.
-
-```
-main
-├── m1/schema-setup
-├── m2/sql-queries
-├── m3/neo4j-setup
-├── m4/backend
-└── m5/frontend
 ```
 
 ## Deadlines
