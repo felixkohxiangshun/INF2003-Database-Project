@@ -16,40 +16,43 @@ A database application backed by **PostgreSQL** (relational) and **Neo4j** (grap
 
 ```
 INF2003 Database Project/
-├── sql/                                #M1 + M2
-│   ├── schema.sql                      #M1
-│   ├── triggers.sql                    #M1
-│   ├── seed.py                         #M1
-│   └── queries/                        #M2
-│       ├── crud_users.sql              #M2
-│       ├── crud_tracks.sql             #M2
-│       ├── crud_playlists.sql          #M2
-│       ├── nested_queries.sql          #M2
-│       └── analysis.sql                #M2
+├── sql/                                M1 + M2
+│   ├── schema.sql                      M1
+│   ├── triggers.sql                    M1
+│   ├── seed.py                         M1
+│   └── queries/                        M2
+│       ├── crud_users.sql              M2
+│       ├── crud_tracks.sql             M2
+│       ├── crud_playlists.sql          M2
+│       ├── nested_queries.sql          M2
+│       └── analysis.sql                M2
 │ 
-├── nosql/                              #M3
-│   ├── graph_schema.md                 #M3
-│   ├── setup.cypher                    #M3
-│   ├── sync.py                         #M3
-│   └── queries/                        #M3
-│         ├── crud.cypher               #M3
-│         └── recommendations.cypher    #M3
+├── nosql/                              M3
+│   ├── graph_schema.md                 M3
+│   ├── setup.cypher                    M3
+│   ├── sync.py                         M3
+│   └── queries/                        M3
+│       ├── crud.cypher                 M3
+│       └── recommendations.cypher      M3
 │ 
-├── backend/                            #M4
-│   ├── app.py                          #M4
-│   ├── db.py                           #M4
-│   └── graph.py                        #M4
-│       └── routes/                     #M4
-│           ├── auth.py                 #M4
-│           ├── tracks.py               #M4
-│           ├── history.py              #M4
-│           ├── recommendations.py      #M4
-│           └── playlist.py             #M4
+├── backend/                            M4
+│   ├── app.py                          M4
+│   ├── db.py                           M4
+│   ├── middleware/                     M4
+│   │   └── auth_required.py            M4
+│   └── graph.py                        M4
+│       └── routes/                     M4
+│           ├── auth.py                 M4
+│           ├── tracks.py               M4
+│           ├── history.py              M4
+│           ├── recommendations.py      M4
+│           └── playlist.py             M4
+│
 │     
-├── frontend/                           #M5
-│   ├── index.html                      #M5
-│   ├── style.css                       #M5
-│   └── app.js                          #M5
+├── frontend/                           M5
+│   ├── index.html                      M5
+│   ├── style.css                       M5
+│   └── app.js                          M5
 │
 ├── data/  
 │   └── dataset.csv           
