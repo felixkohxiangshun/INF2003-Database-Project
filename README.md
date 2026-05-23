@@ -74,14 +74,17 @@ INF2003 Database Project/
 ### 1. Clone the repo
 
 ### 2. Create your Branch
-
-Work on your own branch and open a pull request to `main` when ready.
-
 ```bash
 git checkout -b m2/sql-queries    # M2 runs this
 git checkout -b m3/neo4j-setup    # M3 runs this
 git checkout -b m4/backend        # M4 runs this
 git checkout -b m5/frontend       # M5 runs this
+```
+Once you want to commit run this commands
+```bash
+git add .
+git commit -m "<Description>"
+git push 
 ```
 
 ### 3. Set up Python environment (M4)
