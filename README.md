@@ -35,18 +35,18 @@ INF2003 Database Project/
 │       ├── crud.cypher                 M3
 │       └── recommendations.cypher      M3
 │ 
-├── backend/                            M4
+├── backend/                            M4 + M6
 │   ├── app.py                          M4
 │   ├── db.py                           M4
 │   ├── middleware/                     M4
 │   │   └── auth_required.py            M4
-│   └── graph.py                        M4
-│       └── routes/                     M4
+│   ├── graph.py                        M6      
+│   └── routes/                         M4 + M6
 │           ├── auth.py                 M4
 │           ├── tracks.py               M4
-│           ├── history.py              M4
-│           ├── recommendations.py      M4
-│           └── playlist.py             M4
+│           ├── playlist.py             M4
+│           ├── recommendations.py      M6
+│           └── history.py              M6
 │
 │     
 ├── frontend/                           M5
@@ -79,6 +79,7 @@ git checkout -b m2/sql-queries    # M2 runs this
 git checkout -b m3/neo4j-setup    # M3 runs this
 git checkout -b m4/backend        # M4 runs this
 git checkout -b m5/frontend       # M5 runs this
+git checkout -b m6/backend2       # M6 runs this
 ```
 Once you want to commit run this commands
 ```bash
