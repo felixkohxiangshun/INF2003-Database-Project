@@ -58,7 +58,7 @@ def init_db(app: Flask) -> None:
     @app.teardown_appcontext
     def _return_conn(exc: BaseException | None) -> None:
         """Returns borrowed connections to the pool at the end of each request"""
-        conn = g.pop("db_conn", None)
+        conn = g.pop("pg_conn", None)
         if conn is not None:
             if exc is not None:
                 conn.rollback()            #Rollback on Exception
@@ -78,6 +78,7 @@ def get_conn() -> psycopg2.extensions.connection:
 
 """Serves as a Internal Context Manager - used by execute() and execute_many()
    Achieves a cursor, commits on success, and rolls back on any exception."""
+@contextmanager
 def _cursor():
     conn = get_conn()
     cur = conn.cursor()

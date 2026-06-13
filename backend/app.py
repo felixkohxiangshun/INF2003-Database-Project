@@ -12,10 +12,8 @@ from __future__ import annotations
 import logging
 import os
 from datetime import timedelta
-from urllib import response
-
 from dotenv import load_dotenv
-from flask import Flask, app, jsonify
+from flask import Flask, jsonify
 
 #Loads .env from Project Root Directory
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -132,6 +130,6 @@ def create_app() -> Flask:
 if __name__ == "__main__":
     create_app().run(
         host = "0.0.0.0",
-        port=int(os.getenv("FLASK_PORT", 5000)),
+        port=int(os.getenv("FLASK_PORT", 5001)),
         debug = os.getenv("FLASK_DEBUG", "0") == "1",
     )
