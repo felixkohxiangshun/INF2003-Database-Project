@@ -10,12 +10,13 @@
   - Properties:
     - `track_id` (Primary Key)
     - `title`
+    - `genre`
 
 - **Artist**: Represents music creators.
   - Properties:
     - `artist_id` (Primary Key)
     - `name`
-    - `genre`
+
 
 ## Relationship Types
 - `(User)-[:LISTENED_TO {count, last_played}]->(Track)`
