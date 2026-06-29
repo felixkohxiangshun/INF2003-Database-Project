@@ -13,7 +13,8 @@ import logging
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
+from flask_cors import CORS
 
 #Loads .env from Project Root Directory
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -50,29 +51,55 @@ def create_app() -> Flask:
     
     
         # Neo4j (Graph Database) Setup
-        #NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687"),
-        #NEO4J_USER = os.getenv("NEO4J_USER", "neo4j"),
-        #NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password"),
+        NEO4J_URI      = os.getenv("NEO4J_URI",      "bolt://localhost:7687"),
+        NEO4J_USER     = os.getenv("NEO4J_USER",     "neo4j"),
+        NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", ""),
     ) 
     
     
+    # CORS — only needed if frontend is served from a different origin
+    CORS(app, supports_credentials=True, origins=["http://localhost:8080", "http://127.0.0.1:8080"])
+
+    # Serve frontend static files
+    frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
+    @app.route("/")
+    def index():
+        return send_from_directory(frontend_dir, "index.html")
+
+    @app.route("/<path:filename>")
+    def static_files(filename):
+        return send_from_directory(frontend_dir, filename)
+
     # Database Connections
-    from backend.db    import init_db
+    from backend.db              import init_db
+    from backend.graph           import init_graph
+    from backend.startup_sync    import start_background_sync
     init_db(app)
+    init_graph(app)
+
+    # Seed Neo4j in the background — Flask starts serving immediately,
+    # sync finishes in ~10-30 s depending on dataset size.
+    start_background_sync(app)
 
     # Register Blueprints
     from backend.routes.auth            import bp as auth_bp
     from backend.routes.tracks          import bp as tracks_bp
-    from backend.routes.playlist       import bp as playlists_bp
-    #Neo4j Related Blueprints for Hai Quan
-    #from backend.routes.history         import bp as history_bp
-    #from backend.routes.recommendations import bp as recommendations_bp
+    from backend.routes.playlist        import bp as playlists_bp
+    from backend.routes.history         import bp as history_bp
+    from backend.routes.recommendations import bp as recommendations_bp
+    from backend.routes.artists         import bp as artists_graph_bp
+    from backend.routes.admin           import bp as admin_bp
+    from backend.routes.insights        import bp as insights_bp
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(insights_bp)   # register before tracks so /artists/top-performers matches first
     app.register_blueprint(tracks_bp)
     app.register_blueprint(playlists_bp)
-    #app.register_blueprint(history_bp)
-    #app.register_blueprint(recommendations_bp)
+    app.register_blueprint(history_bp)
+    app.register_blueprint(recommendations_bp)
+    app.register_blueprint(artists_graph_bp)
+    app.register_blueprint(admin_bp)
 
 
 
@@ -81,21 +108,32 @@ def create_app() -> Flask:
     @app.route("/health")
     def health_check():
         from backend.db import query_one
-        
-        pg_ok = False
-        
+        from backend.graph import get_driver
+
+        pg_ok  = False
+        neo_ok = False
+
         try:
             query_one("SELECT 1")
             pg_ok = True
         except Exception as e:
-            log.error(f"PostgreSQL health check failed: {e}")
-            
-        status = "ok" if (pg_ok) else "degraded"
-        code = 200 if status == "ok" else 207
-        
+            log.error("PostgreSQL health check failed: %s", e)
+
+        try:
+            driver = get_driver()
+            if driver:
+                driver.verify_connectivity()
+                neo_ok = True
+        except Exception as e:
+            log.error("Neo4j health check failed: %s", e)
+
+        status = "ok" if (pg_ok and neo_ok) else "degraded"
+        code   = 200 if status == "ok" else 207
+
         return jsonify({
-            "status": status,
-            "postgresql": "up" if pg_ok else "down",
+            "status":     status,
+            "postgresql": "up" if pg_ok  else "down",
+            "neo4j":      "up" if neo_ok else "down",
         }), code
         
         
@@ -122,7 +160,7 @@ def create_app() -> Flask:
         log.error(f"Internal Server Error: {e}")
         return jsonify({"error": "Internal Server Error", "message": "An unexpected error occurred."}), 500
 
-    log.info("Flask App Created Successfully. Registered Blueprints: auth, tracks, playlists")
+    log.info("Flask App Created Successfully. Registered Blueprints: auth, tracks, playlists, history, recommendations")
     return app
 
 
@@ -130,6 +168,6 @@ def create_app() -> Flask:
 if __name__ == "__main__":
     create_app().run(
         host = "0.0.0.0",
-        port=int(os.getenv("FLASK_PORT", 5001)),
+        port=int(os.getenv("FLASK_PORT", 8080)),
         debug = os.getenv("FLASK_DEBUG", "0") == "1",
     )

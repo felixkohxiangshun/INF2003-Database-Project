@@ -90,17 +90,6 @@ def main():
         print("SEEDING TEST DATA")
         print("=" * 60)
 
-        # Plans (may already exist — upsert by name)
-        cur.execute("""
-            INSERT INTO plans (name, monthly_price, skip_limit)
-            VALUES ('Free', 0.00, 6), ('Premium', 9.99, -1)
-            ON CONFLICT (name) DO UPDATE SET monthly_price = EXCLUDED.monthly_price
-            RETURNING plan_id, name
-        """)
-        plans = {r['name']: r['plan_id'] for r in cur.fetchall()}
-        free_plan_id    = plans.get('Free')
-        premium_plan_id = plans.get('Premium')
-
         # Genre
         cur.execute("""
             INSERT INTO genres (name) VALUES ('Pop')
@@ -111,16 +100,16 @@ def main():
 
         # Artist
         cur.execute("""
-            INSERT INTO artists (name, bio, country)
-            VALUES ('Test Artist', 'Test bio', 'SG')
+            INSERT INTO artists (name, bio)
+            VALUES ('Test Artist', 'Test bio')
             RETURNING artist_id
         """)
         artist_id = cur.fetchone()['artist_id']
 
         # Artist 2 (for follow/recommendation tests)
         cur.execute("""
-            INSERT INTO artists (name, bio, country)
-            VALUES ('Another Artist', 'Another bio', 'US')
+            INSERT INTO artists (name, bio)
+            VALUES ('Another Artist', 'Another bio')
             RETURNING artist_id
         """)
         artist_id_2 = cur.fetchone()['artist_id']
@@ -145,26 +134,18 @@ def main():
 
         # Users (2 users)
         cur.execute("""
-            INSERT INTO users (email, username, password_hash, country)
-            VALUES ('testuser1@test.com', 'testuser1', 'hashedpw1', 'SG')
+            INSERT INTO users (email, username, password_hash)
+            VALUES ('testuser1@test.com', 'testuser1', 'hashedpw1')
             RETURNING user_id
         """)
         user_id_1 = cur.fetchone()['user_id']
 
         cur.execute("""
-            INSERT INTO users (email, username, password_hash, country)
-            VALUES ('testuser2@test.com', 'testuser2', 'hashedpw2', 'US')
+            INSERT INTO users (email, username, password_hash)
+            VALUES ('testuser2@test.com', 'testuser2', 'hashedpw2')
             RETURNING user_id
         """)
         user_id_2 = cur.fetchone()['user_id']
-
-        # Subscription for user 1 (Free)
-        cur.execute("""
-            INSERT INTO subscriptions (user_id, plan_id, start_date, status)
-            VALUES (%(user_id)s, %(plan_id)s, CURRENT_DATE, 'active')
-            RETURNING subscription_id
-        """, {'user_id': user_id_1, 'plan_id': free_plan_id})
-        sub_id = cur.fetchone()['subscription_id']
 
         # Play history — user 1 plays all 3 tracks multiple times
         for track_id in track_ids:
@@ -203,62 +184,39 @@ def main():
 
         run(cur, "1. CREATE USER (RETURNING)",
             """
-            INSERT INTO users (email, username, password_hash, country)
-            VALUES (%(email)s, %(username)s, %(password_hash)s, %(country)s)
-            RETURNING user_id, email, username, country, created_at
+            INSERT INTO users (email, username, password_hash)
+            VALUES (%(email)s, %(username)s, %(password_hash)s)
+            RETURNING user_id, email, username, created_at
             """,
-            {'email': 'newuser@test.com', 'username': 'newuser', 'password_hash': 'hash', 'country': 'SG'})
+            {'email': 'newuser@test.com', 'username': 'newuser', 'password_hash': 'hash'})
 
-        run(cur, "2. READ USER BY ID WITH ACTIVE PLAN",
+        run(cur, "2. READ USER BY ID",
             """
-            SELECT u.user_id, u.email, u.username, u.country, u.created_at,
-                   p.name AS current_plan, p.monthly_price, p.skip_limit,
-                   s.subscription_id, s.start_date, s.end_date, s.status
+            SELECT u.user_id, u.email, u.username, u.created_at
             FROM users u
-            LEFT JOIN subscriptions s ON s.user_id = u.user_id AND s.status = 'active'
-            LEFT JOIN plans p ON p.plan_id = s.plan_id
             WHERE u.user_id = %(user_id)s
             """,
             {'user_id': user_id_1})
 
         run(cur, "3. READ USER BY EMAIL",
-            "SELECT user_id, email, username, password_hash, country, created_at FROM users WHERE email = %(email)s",
+            "SELECT user_id, email, username, password_hash, created_at FROM users WHERE email = %(email)s",
             {'email': 'testuser1@test.com'})
 
         run(cur, "4. UPDATE USER PROFILE",
             """
             UPDATE users
             SET email    = COALESCE(%(email)s, email),
-                username = COALESCE(%(username)s, username),
-                country  = COALESCE(%(country)s, country)
+                username = COALESCE(%(username)s, username)
             WHERE user_id = %(user_id)s
-            RETURNING user_id, email, username, country, created_at
+            RETURNING user_id, email, username, created_at
             """,
-            {'email': None, 'username': 'updateduser1', 'country': None, 'user_id': user_id_1})
+            {'email': None, 'username': 'updateduser1', 'user_id': user_id_1})
 
         run(cur, "5. UPDATE PASSWORD HASH",
             "UPDATE users SET password_hash = %(password_hash)s WHERE user_id = %(user_id)s RETURNING user_id, email, username",
             {'password_hash': 'newhash', 'user_id': user_id_1})
 
-        run(cur, "7. CHANGE SUBSCRIPTION PLAN (Premium)",
-            """
-            INSERT INTO subscriptions (user_id, plan_id, start_date, status)
-            SELECT %(user_id)s, p.plan_id, CURRENT_DATE, 'active'
-            FROM plans p WHERE p.name = %(plan_name)s
-            RETURNING subscription_id, user_id, plan_id, start_date, end_date, status
-            """,
-            {'user_id': user_id_1, 'plan_name': 'Premium'})
-
-        run(cur, "8. CANCEL ACTIVE SUBSCRIPTION",
-            """
-            UPDATE subscriptions
-            SET status = 'cancelled', end_date = CURRENT_DATE
-            WHERE user_id = %(user_id)s AND status = 'active'
-            RETURNING subscription_id, user_id, plan_id, start_date, end_date, status
-            """,
-            {'user_id': user_id_1})
-
-        run(cur, "9. USER LISTENING SUMMARY",
+        run(cur, "7. USER LISTENING SUMMARY",
             """
             SELECT u.user_id, u.username,
                    COUNT(ph.history_id) AS total_plays,
@@ -327,7 +285,7 @@ def main():
             """
             SELECT t.track_id, t.title AS track_title, t.duration_sec, t.play_count,
                    al.album_id, al.title AS album_title, al.release_date,
-                   ar.artist_id, ar.name AS artist_name, ar.bio, ar.country AS artist_country,
+                   ar.artist_id, ar.name AS artist_name, ar.bio,
                    g.genre_id, g.name AS genre_name
             FROM tracks t
             JOIN albums al ON al.album_id = t.album_id
@@ -338,8 +296,8 @@ def main():
             {'track_id': track_ids[0]})
 
         run(cur, "3. CREATE ARTIST",
-            "INSERT INTO artists (name, bio, country) VALUES (%(name)s, %(bio)s, %(country)s) RETURNING artist_id, name, bio, country",
-            {'name': 'New Artist', 'bio': 'Some bio', 'country': 'US'})
+            "INSERT INTO artists (name, bio) VALUES (%(name)s, %(bio)s) RETURNING artist_id, name, bio",
+            {'name': 'New Artist', 'bio': 'Some bio'})
 
         run(cur, "4. CREATE ALBUM",
             "INSERT INTO albums (artist_id, title, release_date) VALUES (%(artist_id)s, %(title)s, %(release_date)s) RETURNING album_id, artist_id, title, release_date",
@@ -539,17 +497,12 @@ def main():
             ORDER BY genre_name, genre_rank
             """)
 
-        run(cur, "2. FREE PLAN USERS WHO PLAYED MORE THAN 20 TRACKS TODAY",
+        run(cur, "2. USERS WHO PLAYED MORE THAN 20 TRACKS TODAY",
             """
             SELECT u.user_id, u.username, u.email, COUNT(ph.history_id) AS plays_today
             FROM users u
             JOIN play_history ph ON ph.user_id = u.user_id
-            WHERE u.user_id IN (
-                SELECT s.user_id FROM subscriptions s
-                JOIN plans p ON p.plan_id = s.plan_id
-                WHERE s.status = 'active' AND p.name = 'Free'
-            )
-              AND ph.played_at >= CURRENT_DATE
+            WHERE ph.played_at >= CURRENT_DATE
               AND ph.played_at <  CURRENT_DATE + INTERVAL '1 day'
             GROUP BY u.user_id, u.username, u.email
             HAVING COUNT(ph.history_id) > 20

@@ -1,0 +1,41 @@
+/* ============================================================
+   Resonate — Responsive breakpoints
+   ============================================================ */
+
+@media (max-width: 860px) {
+  .auth { grid-template-columns: 1fr; }
+  .auth__art { display: none; }
+
+  /* Stack the shell vertically; player stays pinned at the bottom */
+  .shell { display: flex; flex-direction: column; }
+  .sidebar {
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    gap: 16px;
+    padding: 14px 16px;
+  }
+  .nav { flex-direction: row; flex-wrap: nowrap; }
+  .nav__link { white-space: nowrap; }
+  .sidebar__foot { margin: 0 0 0 auto; flex-direction: row; align-items: center; gap: 10px; }
+  .main { flex: 1; min-height: 0; }
+
+  .player { grid-template-columns: 1fr auto; padding: 10px 16px; }
+  .player__data { display: none; }
+
+  /* Compact track rows: drop genre + duration, keep play_count for the demo */
+  .track-row { grid-template-columns: 30px 1fr auto auto; gap: 12px; }
+  .track-row__genre, .track-row__dur { display: none; }
+  .track-row__count { min-width: auto; }
+
+  .detail__cover { width: 140px; height: 140px; font-size: 2.6rem; }
+  .detail__title { font-size: 1.8rem; }
+  .topbar { padding: 14px 16px; }
+  .view-root { padding: 20px 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

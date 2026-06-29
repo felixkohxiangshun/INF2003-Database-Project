@@ -1,0 +1,115 @@
+/* ============================================================
+   Resonate — Profile view
+   ============================================================ */
+
+/* Header ---------------------------------------------------- */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 0 20px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+}
+
+.profile-avatar {
+  width: 68px; height: 68px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--coral), var(--lav));
+  display: grid; place-items: center;
+  font-family: var(--font-display);
+  font-size: 1.8rem; font-weight: 800;
+  color: #1a0e1f;
+  flex-shrink: 0;
+}
+
+.profile-header__name  { font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; margin: 0 0 4px; }
+.profile-header__email { font-size: 0.9rem; color: var(--text-dim); margin: 0 0 4px; }
+.profile-header__joined { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-faint); margin: 0; }
+
+/* Stats grid ------------------------------------------------ */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.profile-stat {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px 18px;
+}
+
+.profile-stat__value {
+  font-family: var(--font-display);
+  font-size: 1.6rem; font-weight: 800;
+  color: var(--lav);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.profile-stat__label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.profile-stat__sub {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  text-transform: lowercase;
+}
+
+/* Genre pill row -------------------------------------------- */
+.profile-genre {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.profile-genre__label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Info panel ------------------------------------------------ */
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-info__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+.profile-info__row:last-child { border-bottom: none; padding-bottom: 0; }
+
+.profile-info__key {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  text-transform: lowercase;
+}
+
+.profile-info__val {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* Responsive ------------------------------------------------ */
+@media (max-width: 640px) {
+  .profile-stats { grid-template-columns: repeat(2, 1fr); }
+  .profile-header { flex-direction: column; align-items: flex-start; }
+}

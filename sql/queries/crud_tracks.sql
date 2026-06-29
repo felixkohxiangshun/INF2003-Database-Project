@@ -48,7 +48,6 @@ SELECT
     ar.artist_id,
     ar.name AS artist_name,
     ar.bio,
-    ar.country AS artist_country,
     g.genre_id,
     g.name AS genre_name
 FROM tracks t
@@ -60,9 +59,9 @@ WHERE t.track_id = %(track_id)s;
 -- -------------------------------------------------------------
 -- 3. CREATE ARTIST
 -- -------------------------------------------------------------
-INSERT INTO artists (name, bio, country)
-VALUES (%(name)s, %(bio)s, %(country)s)
-RETURNING artist_id, name, bio, country;
+INSERT INTO artists (name, bio)
+VALUES (%(name)s, %(bio)s)
+RETURNING artist_id, name, bio;
 
 -- -------------------------------------------------------------
 -- 4. CREATE ALBUM

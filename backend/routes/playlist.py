@@ -8,33 +8,15 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
-
 from flask import Blueprint, g, jsonify, request
+import psycopg2.errors
 
 from backend.db import execute, query, query_one
 from backend.middleware.auth_required import auth_required
+from backend.utils import serialize as _serialize
 
 log = logging.getLogger(__name__)
 bp  = Blueprint("playlists", __name__)
-
-
-# ---------------------------------------------------------------------------
-# -------------------------------Helpers-------------------------------------
-# ---------------------------------------------------------------------------
-"""Recurisvely convert date/datetime obj to strings for JSON serialization."""
-def _serialize(obj):
-    
-    if isinstance(obj, dict):
-        return {k: _serialize(v) for k, v in obj.items()}
-    
-    if isinstance(obj, list):
-        return [_serialize(v) for v in obj]
-    
-    if isinstance(obj, (date, datetime)):
-        return str(obj)
-    
-    return obj
 
 
 """Checks if a playlist exists and belongs to the given user."""
@@ -284,41 +266,39 @@ def add_track(playlist_id: int):
     if not query_one("SELECT 1 FROM tracks WHERE track_id=%(id)s", {"id": track_id}):
         return jsonify({"error": "Track not found"}), 404
 
-    if position is None:
-        # Append to end
-        rows = execute(
-            """
-            INSERT INTO playlist_tracks (playlist_id, track_id, position)
-            SELECT %(pid)s, %(tid)s, COALESCE(MAX(position), 0) + 1
-            FROM   playlist_tracks
-            WHERE  playlist_id = %(pid)s
-            ON CONFLICT (playlist_id, track_id) DO NOTHING
-            RETURNING playlist_id, track_id, position
-            """,
-            {"pid": playlist_id, "tid": track_id},
-        )
-    else:
-        execute(
-            """
-            UPDATE playlist_tracks
-            SET    position = position + 1
-            WHERE  playlist_id = %(pid)s AND position >= %(pos)s
-            """,
-            {"pid": playlist_id, "pos": position},
-        )
-
-        rows = execute(
-            """
-            INSERT INTO playlist_tracks (playlist_id, track_id, position)
-            VALUES (%(pid)s, %(tid)s, %(pos)s)
-            ON CONFLICT (playlist_id, track_id) DO NOTHING
-            RETURNING playlist_id, track_id, position
-            """,
-            {"pid": playlist_id, "tid": track_id, "pos": position},
-        )
-
-    if not rows:
-        return jsonify({"message": "Track already in playlist"}), 200
+    try:
+        if position is None:
+            # Append to end — trg_prevent_duplicate_playlist_track fires before this INSERT
+            rows = execute(
+                """
+                INSERT INTO playlist_tracks (playlist_id, track_id, position)
+                SELECT %(pid)s, %(tid)s, COALESCE(MAX(position), 0) + 1
+                FROM   playlist_tracks
+                WHERE  playlist_id = %(pid)s
+                RETURNING playlist_id, track_id, position
+                """,
+                {"pid": playlist_id, "tid": track_id},
+            )
+        else:
+            execute(
+                """
+                UPDATE playlist_tracks
+                SET    position = position + 1
+                WHERE  playlist_id = %(pid)s AND position >= %(pos)s
+                """,
+                {"pid": playlist_id, "pos": position},
+            )
+            rows = execute(
+                """
+                INSERT INTO playlist_tracks (playlist_id, track_id, position)
+                VALUES (%(pid)s, %(tid)s, %(pos)s)
+                RETURNING playlist_id, track_id, position
+                """,
+                {"pid": playlist_id, "tid": track_id, "pos": position},
+            )
+    except psycopg2.errors.RaiseException:
+        # trg_prevent_duplicate_playlist_track raised 'duplicate_playlist_track'
+        return jsonify({"error": "Track already in playlist"}), 409
 
     return jsonify(rows[0]), 201
 

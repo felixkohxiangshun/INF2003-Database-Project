@@ -1,0 +1,106 @@
+/* ============================================================
+   Resonate — Charts / Stats view
+   ============================================================ */
+
+.stat-grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+.panel {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 20px;
+}
+.panel h2 {
+  font-family: var(--font-display);
+  font-size: 1.15rem; margin: 0 0 14px; font-weight: 700;
+}
+.bar-row { display: grid; grid-template-columns: 1fr 70px; gap: 12px; align-items: center; margin-bottom: 11px; }
+.bar-row__label { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-row__label small { color: var(--text-dim); }
+.bar-track { background: var(--ink); border-radius: 999px; height: 10px; overflow: hidden; margin-top: 5px; }
+.bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--coral), var(--lav)); }
+.bar-row__val { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-dim); text-align: right; }
+
+/* ── Top-by-genre panel (window function query) ── */
+.panel__sub {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin: -8px 0 16px;
+}
+.panel__sub code {
+  background: var(--ink);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 1px 5px;
+}
+
+.genre-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.genre-breakdown-box {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 14px 10px;
+}
+
+.genre-breakdown-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.genre-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.genre-breakdown-row {
+  align-items: flex-start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 22px 1fr auto;
+}
+
+.genre-breakdown-rank {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding-top: 1px;
+}
+
+.genre-breakdown-meta {
+  min-width: 0;
+}
+
+.genre-breakdown-title {
+  font-size: 0.84rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.genre-breakdown-artist {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.genre-breakdown-plays {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}

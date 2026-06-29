@@ -10,7 +10,23 @@
     href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="style.css" />
+
+  <!-- CSS: variables must come first so all other files can use them -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/browse.css" />
+  <link rel="stylesheet" href="css/playlists.css" />
+  <link rel="stylesheet" href="css/recommendations.css" />
+  <link rel="stylesheet" href="css/charts.css" />
+  <link rel="stylesheet" href="css/player.css" />
+  <link rel="stylesheet" href="css/modal.css" />
+  <link rel="stylesheet" href="css/explore.css" />
+  <link rel="stylesheet" href="css/graph.css" />
+  <link rel="stylesheet" href="css/profile.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
 </head>
 <body>
   <!-- ============================================================
@@ -46,7 +62,6 @@
           <input name="password" type="password" autocomplete="current-password" placeholder="••••••••" required />
         </label>
         <button type="submit" class="btn btn--primary btn--block">Sign in</button>
-        <p class="auth__hint">Demo: <code>alice@example.com</code> / <code>password123</code></p>
       </form>
 
       <!-- Register form -->
@@ -59,18 +74,11 @@
           <span class="field__label">Username</span>
           <input name="username" type="text" autocomplete="username" placeholder="yourname" required />
         </label>
-        <div class="field-row">
-          <label class="field">
-            <span class="field__label">Password</span>
-            <input name="password" type="password" autocomplete="new-password" placeholder="••••••••" required />
-          </label>
-          <label class="field field--narrow">
-            <span class="field__label">Country</span>
-            <input name="country" type="text" maxlength="2" placeholder="SG" />
-          </label>
-        </div>
+        <label class="field">
+          <span class="field__label">Password</span>
+          <input name="password" type="password" autocomplete="new-password" placeholder="••••••••" required />
+        </label>
         <button type="submit" class="btn btn--primary btn--block">Create account</button>
-        <p class="auth__hint">A Free subscription is added automatically on signup.</p>
       </form>
     </div>
   </section>
@@ -99,6 +107,15 @@
         <a class="nav__link" href="#/stats" data-route="stats">
           <span class="nav__icon">▤</span> Charts
         </a>
+        <a class="nav__link" href="#/graph" data-route="graph">
+          <span class="nav__icon">◉</span> Graph
+        </a>
+        <a class="nav__link" href="#/profile" data-route="profile">
+          <span class="nav__icon">◈</span> Profile
+        </a>
+        <a class="nav__link" href="#/admin" data-route="admin">
+          <span class="nav__icon">⚙</span> Admin
+        </a>
       </nav>
 
       <div class="sidebar__foot">
@@ -106,7 +123,7 @@
           <div class="userchip__avatar" id="user-avatar">A</div>
           <div class="userchip__meta">
             <span class="userchip__name" id="user-name">—</span>
-            <span class="userchip__plan" id="user-plan">Free plan</span>
+            <span class="userchip__plan" id="user-plan"></span>
           </div>
         </div>
         <button id="logout-btn" class="btn btn--ghost btn--sm btn--block">Sign out</button>
@@ -120,8 +137,8 @@
           <span class="search__icon">⌕</span>
           <input id="search-input" type="search" placeholder="Search tracks, artists, albums…" autocomplete="off" />
         </div>
-        <div id="genre-chips" class="chips" aria-label="Filter by genre"></div>
       </header>
+      <div id="genre-chips" class="chips genre-chips-bar" aria-label="Filter by genre"></div>
 
       <div id="view-root" class="view-root">
         <!-- Views render here -->
@@ -155,6 +172,26 @@
   <!-- Toasts -->
   <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
 
-  <script src="app.js"></script>
+  <!-- JS: load in dependency order -->
+  <!-- 1. Config, API, Mock -->
+  <script src="js/config.js"></script>
+  <!-- 2. State, helpers, formatters -->
+  <script src="js/helpers.js"></script>
+  <!-- 3. Player (views call playTrack) -->
+  <script src="js/player.js"></script>
+  <!-- 4. Modals (views call openAddToPlaylist etc.) -->
+  <script src="js/modals.js"></script>
+  <!-- 5. Views (router references these) -->
+  <script src="js/views/browse.js"></script>
+  <script src="js/views/playlists.js"></script>
+  <script src="js/views/recommendations.js"></script>
+  <script src="js/views/charts.js"></script>
+  <script src="js/views/graph.js"></script>
+  <script src="js/views/profile.js"></script>
+  <script src="js/views/admin.js"></script>
+  <!-- 6. Router (needs all view functions defined) -->
+  <script src="js/router.js"></script>
+  <!-- 7. Auth + boot (wires everything together) -->
+  <script src="js/auth.js"></script>
 </body>
 </html>

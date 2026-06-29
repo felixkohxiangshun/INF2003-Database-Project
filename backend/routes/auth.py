@@ -14,7 +14,7 @@ import logging
 import bcrypt
 from flask import Blueprint, g, jsonify, request, session
 
-from backend.db import execute, query_one
+from backend.db import execute, query, query_one
 from backend.middleware.auth_required import auth_required
 
 log = logging.getLogger(__name__)
@@ -54,15 +54,12 @@ def register():
     email    = (body.get("email")    or "").strip().lower()
     username = (body.get("username") or "").strip()
     password =  body.get("password") or ""
-    country  = (body.get("country")  or "").strip().upper() or None
 
     # Basic Validation
     if not email or not username or not password:
         return jsonify({"error": "email, username and password are required"}), 400
     if len(password) < 6:
         return jsonify({"error": "Password must be at least 6 characters"}), 400
-    if country and len(country) != 2:
-        return jsonify({"error": "country must be a 2-letter ISO code"}), 400
 
     # Duplicate Check
     if query_one("SELECT user_id FROM users WHERE email = %(email)s", {"email": email}):
@@ -73,29 +70,17 @@ def register():
     # Insert User
     rows = execute(
         """
-        INSERT INTO users (email, username, password_hash, country)
-        VALUES (%(email)s, %(username)s, %(password_hash)s, %(country)s)
-        RETURNING user_id, email, username, country, created_at
+        INSERT INTO users (email, username, password_hash)
+        VALUES (%(email)s, %(username)s, %(password_hash)s)
+        RETURNING user_id, email, username, created_at
         """,
         {
             "email":         email,
             "username":      username,
             "password_hash": _hash(password),
-            "country":       country,
         },
     )
     user = rows[0]
-
-    # Auto-Assign Free plan
-    execute(
-        """
-        INSERT INTO subscriptions (user_id, plan_id, start_date, status)
-        SELECT %(user_id)s, plan_id, CURRENT_DATE, 'active'
-        FROM   plans
-        WHERE  name = 'Free'
-        """,
-        {"user_id": user["user_id"]},
-    )
 
     _set_session(user)
     log.info("Registered user_id=%d email=%s", user["user_id"], email)
@@ -122,7 +107,7 @@ def login():
         return jsonify({"error": "email and password are required"}), 400
 
     user = query_one(
-        "SELECT user_id, email, username, password_hash, country, created_at "
+        "SELECT user_id, email, username, password_hash, created_at "
         "FROM users WHERE email = %(email)s",
         {"email": email},
     )
@@ -162,17 +147,8 @@ def me():
 
     user = query_one(
         """
-        SELECT u.user_id, u.email, u.username, u.country, u.created_at,
-               p.name          AS current_plan,
-               p.monthly_price,
-               p.skip_limit,
-               s.subscription_id,
-               s.start_date,
-               s.end_date,
-               s.status        AS subscription_status
+        SELECT u.user_id, u.email, u.username, u.created_at
         FROM   users u
-        LEFT JOIN subscriptions s ON s.user_id = u.user_id AND s.status = 'active'
-        LEFT JOIN plans p         ON p.plan_id  = s.plan_id
         WHERE  u.user_id = %(user_id)s
         """,
         {"user_id": g.user_id},
@@ -181,19 +157,71 @@ def me():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # Converts the datetime/date objects to ISO strings for JSON Serialisation
+    # Converts the datetime objects to ISO strings for JSON Serialisation
     user = dict(user)
-    for key in ("created_at", "start_date", "end_date"):
-        if user.get(key) is not None:
-            user[key] = str(user[key])
+    if user.get("created_at") is not None:
+        user["created_at"] = str(user["created_at"])
 
     return jsonify(user)
 
 
 # ---------------------------------------------------------------------------
+# GET /auth/profile  — user profile with stats
+# ---------------------------------------------------------------------------
+@bp.route("/profile", methods=["GET"])
+@auth_required
+def profile():
+    """Return the current user's info plus activity stats."""
+    user = query_one(
+        "SELECT user_id, email, username, created_at FROM users WHERE user_id = %(id)s",
+        {"id": g.user_id},
+    )
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    user = dict(user)
+    if user.get("created_at"):
+        user["created_at"] = str(user["created_at"])
+
+    stats = query_one(
+        """
+        SELECT
+            (SELECT COUNT(*)        FROM play_history        WHERE user_id = %(id)s) AS total_plays,
+            (SELECT COUNT(DISTINCT track_id) FROM play_history WHERE user_id = %(id)s) AS unique_tracks,
+            (SELECT COUNT(*)        FROM user_follows_artist WHERE user_id = %(id)s) AS artists_followed,
+            (SELECT COUNT(*)        FROM playlists           WHERE user_id = %(id)s) AS playlist_count
+        """,
+        {"id": g.user_id},
+    )
+
+    top_genre = query_one(
+        """
+        SELECT g.name
+        FROM   play_history ph
+        JOIN   tracks t ON t.track_id = ph.track_id
+        JOIN   genres g ON g.genre_id = t.genre_id
+        WHERE  ph.user_id = %(id)s
+        GROUP  BY g.name
+        ORDER  BY COUNT(*) DESC
+        LIMIT  1
+        """,
+        {"id": g.user_id},
+    )
+
+    return jsonify({
+        **user,
+        "total_plays":      stats["total_plays"]      if stats else 0,
+        "unique_tracks":    stats["unique_tracks"]     if stats else 0,
+        "artists_followed": stats["artists_followed"]  if stats else 0,
+        "playlist_count":   stats["playlist_count"]    if stats else 0,
+        "top_genre":        top_genre["name"]          if top_genre else None,
+    })
+
+
+# ---------------------------------------------------------------------------
 # -----------------------PUT /auth/me  — update profile----------------------
 # ---------------------------------------------------------------------------
-"""Updates the current user's username, email, or country."""
+"""Updates the current user's username or email."""
 @bp.route("/me", methods=["PUT"])
 @auth_required
 def update_profile():
@@ -201,7 +229,6 @@ def update_profile():
     body     = request.get_json(silent=True) or {}
     username = body.get("username")
     email    = body.get("email")
-    country  = body.get("country")
 
     if email:
         email = email.strip().lower()
@@ -225,15 +252,13 @@ def update_profile():
         """
         UPDATE users
         SET    email    = COALESCE(%(email)s,    email),
-               username = COALESCE(%(username)s, username),
-               country  = COALESCE(%(country)s,  country)
+               username = COALESCE(%(username)s, username)
         WHERE  user_id  = %(user_id)s
-        RETURNING user_id, email, username, country, created_at
+        RETURNING user_id, email, username, created_at
         """,
         {
             "email":    email,
             "username": username,
-            "country":  country,
             "user_id":  g.user_id,
         },
     )

@@ -6,30 +6,14 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
-
 from flask import Blueprint, g, jsonify, request
 
 from backend.db import execute, query, query_one
 from backend.middleware.auth_required import auth_required
+from backend.utils import serialize as _serialize
 
 log = logging.getLogger(__name__)
 bp  = Blueprint("tracks", __name__)
-
-
-# ---------------------------------------------------------------------------
-# --------------------------------Helpers------------------------------------
-# ---------------------------------------------------------------------------
-"""Recursively converts date objects to strings for JSON serialisation."""
-def _serialize(obj):
-    
-    if isinstance(obj, dict):
-        return {k: _serialize(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_serialize(v) for v in obj]
-    if isinstance(obj, date):
-        return str(obj)
-    return obj
 
 
 """Parses and validates limit and offset query parameters.
@@ -95,6 +79,9 @@ def list_tracks():
 @bp.route("/tracks/<int:track_id>", methods=["GET"])
 def get_track(track_id: int):
     
+    from flask import session as flask_session
+    user_id = flask_session.get("user_id")
+
     row = query_one(
         """
         SELECT t.track_id,
@@ -107,16 +94,22 @@ def get_track(track_id: int):
                ar.artist_id,
                ar.name          AS artist_name,
                ar.bio,
-               ar.country       AS artist_country,
                g.genre_id,
-               g.name           AS genre_name
+               g.name           AS genre_name,
+               COALESCE(uph.user_plays, 0) AS user_plays
         FROM   tracks t
         JOIN   albums  al ON al.album_id  = t.album_id
         JOIN   artists ar ON ar.artist_id = al.artist_id
         LEFT JOIN genres g ON g.genre_id  = t.genre_id
+        LEFT JOIN (
+            SELECT track_id, COUNT(*) AS user_plays
+            FROM   play_history
+            WHERE  user_id = %(user_id)s
+            GROUP  BY track_id
+        ) uph ON uph.track_id = t.track_id
         WHERE  t.track_id = %(track_id)s
         """,
-        {"track_id": track_id},
+        {"track_id": track_id, "user_id": user_id},
     )
     if not row:
         return jsonify({"error": "Track not found"}), 404
@@ -141,13 +134,12 @@ def list_artists():
         SELECT ar.artist_id,
                ar.name,
                ar.bio,
-               ar.country,
                COUNT(DISTINCT t.track_id) AS track_count
         FROM   artists ar
         LEFT JOIN albums al ON al.artist_id = ar.artist_id
         LEFT JOIN tracks t  ON t.album_id   = al.album_id
         WHERE  (%(q)s IS NULL OR ar.name ILIKE '%%' || %(q)s || '%%')
-        GROUP  BY ar.artist_id, ar.name, ar.bio, ar.country
+        GROUP  BY ar.artist_id, ar.name, ar.bio
         ORDER  BY track_count DESC, ar.name ASC
         LIMIT  %(limit)s OFFSET %(offset)s
         """,
@@ -164,7 +156,7 @@ def list_artists():
 def get_artist(artist_id: int):
     """Return an artist with their albums and tracks."""
     artist = query_one(
-        "SELECT artist_id, name, bio, country FROM artists WHERE artist_id = %(id)s",
+        "SELECT artist_id, name, bio FROM artists WHERE artist_id = %(id)s",
         {"id": artist_id},
     )
     if not artist:
@@ -228,6 +220,24 @@ def follow_artist(artist_id: int):
     )
 
     followed_at = str(rows[0]["followed_at"]) if rows else None
+
+    # Real-time Neo4j write
+    try:
+        from backend.graph import get_driver
+        driver = get_driver()
+        if driver:
+            with driver.session() as s:
+                s.run(
+                    """
+                    MERGE (u:User   {user_id:   $user_id})
+                    MERGE (a:Artist {artist_id: $artist_id})
+                    MERGE (u)-[:FOLLOWS]->(a)
+                    """,
+                    {"user_id": g.user_id, "artist_id": artist_id},
+                )
+    except Exception:
+        log.warning("Neo4j follow write failed user=%s artist=%s", g.user_id, artist_id)
+
     return jsonify({"following": True, "followed_at": followed_at}), 201
 
 
@@ -241,7 +251,76 @@ def unfollow_artist(artist_id: int):
         {"uid": g.user_id, "aid": artist_id},
     )
 
+    # Real-time Neo4j write
+    try:
+        from backend.graph import get_driver
+        driver = get_driver()
+        if driver:
+            with driver.session() as s:
+                s.run(
+                    """
+                    MATCH (u:User   {user_id:   $user_id})-[r:FOLLOWS]->
+                          (a:Artist {artist_id: $artist_id})
+                    DELETE r
+                    """,
+                    {"user_id": g.user_id, "artist_id": artist_id},
+                )
+    except Exception:
+        log.warning("Neo4j unfollow write failed user=%s artist=%s", g.user_id, artist_id)
+
     return jsonify({"following": False})
+
+
+# ---------------------------------------------------------------------------
+# ----------------------------------POST /play-------------------------------
+# ---------------------------------------------------------------------------
+"""Logs a track play for the current user. Trigger increments tracks.play_count.
+   Returns the updated play_count."""
+@bp.route("/play", methods=["POST"])
+@auth_required
+def log_play():
+    body     = request.get_json(silent=True) or {}
+    track_id = body.get("track_id")
+
+    if not track_id:
+        return jsonify({"error": "track_id is required"}), 400
+
+    if not query_one("SELECT 1 FROM tracks WHERE track_id=%(id)s", {"id": track_id}):
+        return jsonify({"error": "Track not found"}), 404
+
+    # Insert play — trigger fires AFTER this, incrementing play_count
+    execute(
+        "INSERT INTO play_history (user_id, track_id) VALUES (%(user_id)s, %(track_id)s)",
+        {"user_id": g.user_id, "track_id": track_id},
+    )
+
+    # Read play_count in a separate query — trigger has now fired so count is accurate
+    row = query_one(
+        "SELECT play_count FROM tracks WHERE track_id = %(track_id)s",
+        {"track_id": track_id},
+    )
+    play_count = row["play_count"] if row else None
+
+    # Real-time Neo4j write: keep LISTENED_TO edge in sync without running sync.py
+    try:
+        from backend.graph import get_driver
+        driver = get_driver()
+        if driver:
+            with driver.session() as s:
+                s.run(
+                    """
+                    MERGE (u:User  {user_id:  $user_id})
+                    MERGE (t:Track {track_id: $track_id})
+                    MERGE (u)-[r:LISTENED_TO]->(t)
+                    ON CREATE SET r.count = 1,             r.last_played = datetime()
+                    ON MATCH  SET r.count = r.count + 1,  r.last_played = datetime()
+                    """,
+                    {"user_id": g.user_id, "track_id": track_id},
+                )
+    except Exception:
+        log.warning("Neo4j real-time write failed for user=%s track=%s", g.user_id, track_id)
+
+    return jsonify({"ok": True, "play_count": play_count})
 
 
 # ---------------------------------------------------------------------------

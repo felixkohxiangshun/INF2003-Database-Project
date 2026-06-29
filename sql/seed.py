@@ -67,20 +67,6 @@ def load_csv():
 # Seed helpers
 # ------------------------------------------------------------------
 
-def seed_plans(cur):
-    """Insert the three subscription tiers."""
-    plans = [
-        ("Free",       0.00,  6),
-        ("Premium",    9.90, -1),
-        ("Student",    4.90, -1),
-    ]
-    execute_values(cur,
-        "INSERT INTO plans (name, monthly_price, skip_limit) VALUES %s ON CONFLICT (name) DO NOTHING",
-        plans
-    )
-    print("  Plans seeded")
-
-
 def seed_genres(cur, df):
     """Insert unique genres from the dataset."""
     genres = [(g,) for g in df["track_genre"].dropna().unique()]
@@ -96,7 +82,6 @@ def seed_artists(cur, df):
     The dataset stores artists as a semicolon-separated string.
     We take the first listed artist per track to keep it simple.
     """
-    # Extract first artist from strings like "Artist1;Artist2"
     all_artists = df["artists"].str.split(";").str[0].str.strip().dropna().unique()
     artist_rows = [(a,) for a in all_artists]
     execute_values(cur,
@@ -111,14 +96,12 @@ def seed_albums_and_tracks(cur, df):
     Build albums and tracks in one pass.
     Albums are identified by (artist_name, album_name).
     """
-    # Fetch lookup maps from DB
     cur.execute("SELECT name, artist_id FROM artists")
     artist_map = {row[0]: row[1] for row in cur.fetchall()}
 
     cur.execute("SELECT name, genre_id FROM genres")
     genre_map = {row[0]: row[1] for row in cur.fetchall()}
 
-    # Deduplicate albums
     df["first_artist"] = df["artists"].str.split(";").str[0].str.strip()
     albums_df = df[["first_artist", "album_name"]].drop_duplicates()
 
@@ -134,11 +117,9 @@ def seed_albums_and_tracks(cur, df):
     )
     print(f"  {len(album_rows)} albums seeded")
 
-    # Fetch album map: (artist_id, title) -> album_id
     cur.execute("SELECT artist_id, title, album_id FROM albums")
     album_map = {(row[0], row[1]): row[2] for row in cur.fetchall()}
 
-    # Build track rows
     track_rows = []
     for _, row in df.iterrows():
         artist_id = artist_map.get(row["first_artist"])
@@ -158,35 +139,20 @@ def seed_albums_and_tracks(cur, df):
 
 def seed_demo_users(cur):
     """
-    Insert a small set of demo users so M4 can test auth immediately.
-    Passwords are bcrypt hashes of 'password123' — replace in production.
+    Insert demo users with bcrypt-hashed passwords.
+    Hash below is for 'password123' — update before production use.
     """
-    demo_hash = "$2b$12$demohashdemohashdemohasXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    import bcrypt
+    demo_hash = bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode()
     users = [
-        ("alice@example.com",  "alice",   "SG", demo_hash),
-        ("bob@example.com",    "bob",     "SG", demo_hash),
-        ("carol@example.com",  "carol",   "MY", demo_hash),
+        ("alice@example.com", "alice", demo_hash),
+        ("bob@example.com",   "bob",   demo_hash),
+        ("carol@example.com", "carol", demo_hash),
     ]
     execute_values(cur,
-        "INSERT INTO users (email, username, country, password_hash) VALUES %s ON CONFLICT (email) DO NOTHING",
+        "INSERT INTO users (email, username, password_hash) VALUES %s ON CONFLICT (email) DO NOTHING",
         users
     )
-
-    # Give each demo user an active Free subscription
-    cur.execute("SELECT user_id FROM users WHERE email = ANY(%s)",
-                (["alice@example.com", "bob@example.com", "carol@example.com"],))
-    user_ids = [row[0] for row in cur.fetchall()]
-
-    cur.execute("SELECT plan_id FROM plans WHERE name = 'Free'")
-    free_plan_id = cur.fetchone()[0]
-
-    for uid in user_ids:
-        cur.execute("""
-            INSERT INTO subscriptions (user_id, plan_id, status)
-            VALUES (%s, %s, 'active')
-            ON CONFLICT DO NOTHING
-        """, (uid, free_plan_id))
-
     print(f"  {len(users)} demo users seeded (password: password123)")
 
 
@@ -204,7 +170,6 @@ def main():
         df = load_csv()
 
         print("\nSeeding reference data …")
-        seed_plans(cur)
         seed_genres(cur, df)
         seed_artists(cur, df)
         seed_albums_and_tracks(cur, df)

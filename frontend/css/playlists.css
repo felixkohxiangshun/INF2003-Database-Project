@@ -1,0 +1,25 @@
+/* ============================================================
+   Resonate — Playlists grid and cards
+   ============================================================ */
+
+.pl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.pl-card {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.15s;
+  display: flex; flex-direction: column; gap: 6px;
+  min-height: 120px;
+}
+.pl-card:hover { transform: translateY(-3px); border-color: var(--line-2); }
+.pl-card__name { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+.pl-card__meta { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-faint); margin-top: auto; }
+.pl-card__vis { font-size: 0.72rem; color: var(--text-dim); }
+.pl-card--new {
+  border-style: dashed;
+  align-items: center; justify-content: center;
+  color: var(--text-faint); font-weight: 600;
+}
+.pl-card--new:hover { color: var(--lav); border-color: var(--lav); }

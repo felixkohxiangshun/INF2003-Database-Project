@@ -1,0 +1,234 @@
+/* ============================================================
+   Resonate — Admin panel
+   Uses the same tokens as the rest of the app (variables.css).
+   ============================================================ */
+
+/* ── Tab bar ─────────────────────────────────────────────── */
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-tab {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 7px 16px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.admin-tab:hover { color: var(--text); border-color: var(--text-dim); }
+.admin-tab.is-active {
+  background: var(--coral);
+  border-color: var(--coral);
+  color: #2a0f08;
+}
+
+/* ── Section panels (matches .panel from charts.css) ─────── */
+.admin-section {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 20px 22px;
+  margin-bottom: 18px;
+}
+
+.admin-section h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 16px;
+  color: var(--text);
+}
+
+/* ── Forms ───────────────────────────────────────────────── */
+.admin-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea {
+  background: var(--ink);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  padding: 9px 12px;
+  min-width: 150px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.admin-form input:focus,
+.admin-form select:focus,
+.admin-form textarea:focus {
+  border-color: var(--lav);
+  box-shadow: 0 0 0 3px var(--lav-soft);
+}
+.admin-form textarea {
+  resize: vertical;
+  min-width: 260px;
+  min-height: 60px;
+}
+
+/* ── Tables ──────────────────────────────────────────────── */
+.admin-table {
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  width: 100%;
+}
+
+.admin-table th {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-weight: 400;
+  padding: 0 12px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line-2);
+}
+
+.admin-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  color: var(--text-dim);
+}
+
+.admin-table td:first-child {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+.admin-table tr:last-child td { border-bottom: none; }
+
+.admin-table td .btn + .btn { margin-left: 6px; }
+
+/* ── Album sub-list ──────────────────────────────────────── */
+.admin-artist-block { margin-bottom: 16px; }
+
+.admin-artist-block h4 {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 8px;
+}
+
+.admin-album-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.admin-album-row:last-child { border-bottom: none; }
+
+/* ── Genre list ──────────────────────────────────────────── */
+.admin-genre-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.admin-genre-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.admin-genre-list li:last-child { border-bottom: none; }
+.admin-genre-list li span:first-child {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  min-width: 28px;
+}
+
+/* ── Audit log note ──────────────────────────────────────── */
+.admin-note {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  background: var(--ink-3);
+  border-left: 2px solid var(--lav);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+/* ── States ──────────────────────────────────────────────── */
+.admin-loading {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  padding: 12px 0;
+}
+.admin-error {
+  font-size: 0.875rem;
+  color: var(--coral);
+  padding: 12px 0;
+}
+
+/* ── Edit modal ──────────────────────────────────────────── */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 6, 18, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+}
+
+.admin-modal {
+  background: var(--ink-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  max-width: 520px;
+  padding: 28px;
+  width: 90%;
+}
+
+.admin-modal h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 20px;
+}
+
+.admin-modal .admin-form { flex-direction: column; align-items: stretch; }
+.admin-modal .admin-form input,
+.admin-modal .admin-form select,
+.admin-modal .admin-form textarea { min-width: 0; width: 100%; }
+
+.admin-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}

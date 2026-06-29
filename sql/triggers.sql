@@ -44,27 +44,37 @@ CREATE OR REPLACE TRIGGER trg_increment_play_count
 
 
 -- -------------------------------------------------------------
--- TRIGGER: trg_deactivate_old_subscription
+-- TRIGGER: trg_audit_users
 --
 -- Purpose:
---   When a new 'active' subscription is inserted for a user,
---   automatically mark their previous subscription as 'expired'.
---   Enforces the business rule: one active plan per user.
+--   Records any change to a user's email or username into the
+--   audit_log table, providing a tamper-evident history of
+--   account modifications.
 --
 -- When it fires:
---   AFTER INSERT on subscriptions, only when status = 'active'.
+--   AFTER every UPDATE on the users table (row level).
+--
+-- What it does:
+--   Compares OLD vs NEW values for email and username and inserts
+--   one audit_log row per changed field.
 -- -------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION fn_deactivate_old_subscription()
+CREATE OR REPLACE FUNCTION fn_audit_user_changes()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.status = 'active' THEN
-        UPDATE subscriptions
-        SET    status   = 'expired',
-               end_date = CURRENT_DATE
-        WHERE  user_id  = NEW.user_id
-          AND  status   = 'active'
-          AND  subscription_id <> NEW.subscription_id;
+    IF OLD.email <> NEW.email THEN
+        INSERT INTO audit_log (record_id, changed_by, field_name, old_value, new_value)
+        VALUES (NEW.user_id, NEW.username, 'email', OLD.email, NEW.email);
+    END IF;
+
+    IF OLD.username <> NEW.username THEN
+        INSERT INTO audit_log (record_id, changed_by, field_name, old_value, new_value)
+        VALUES (NEW.user_id, NEW.username, 'username', OLD.username, NEW.username);
+    END IF;
+
+    IF OLD.password_hash <> NEW.password_hash THEN
+        INSERT INTO audit_log (record_id, changed_by, field_name, old_value, new_value)
+        VALUES (NEW.user_id, NEW.username, 'password_hash', '(hidden)', '(hidden)');
     END IF;
 
     RETURN NEW;
@@ -72,7 +82,62 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE TRIGGER trg_deactivate_old_subscription
-    AFTER INSERT ON subscriptions
+CREATE OR REPLACE TRIGGER trg_audit_users
+    AFTER UPDATE ON users
     FOR EACH ROW
-    EXECUTE FUNCTION fn_deactivate_old_subscription();
+    EXECUTE FUNCTION fn_audit_user_changes();
+
+
+-- -------------------------------------------------------------
+-- TRIGGER: trg_prevent_duplicate_playlist_track
+--
+-- Purpose:
+--   Enforces the business rule that a track can appear at most
+--   once in a given playlist, regardless of which application or
+--   user submits the INSERT.
+--
+-- When it fires:
+--   BEFORE every INSERT into playlist_tracks (row level).
+--
+-- What it does:
+--   Checks whether the (playlist_id, track_id) pair already
+--   exists. If it does, raises a database-level exception with
+--   SQLSTATE P0001 so the calling code receives a clear, typed
+--   error rather than a silent no-op.
+--
+-- Design note:
+--   A unique constraint on (playlist_id, track_id) would prevent
+--   duplicates too, but produces a generic "unique_violation"
+--   error that is harder to distinguish from other constraint
+--   failures. This trigger raises a named exception
+--   ('duplicate_playlist_track') so the API layer can return
+--   a precise 409 response without inspecting raw SQL state.
+-- -------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION fn_prevent_duplicate_playlist_track()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM   playlist_tracks
+        WHERE  playlist_id = NEW.playlist_id
+          AND  track_id    = NEW.track_id
+    ) THEN
+        RAISE EXCEPTION 'duplicate_playlist_track'
+            USING
+                DETAIL = format(
+                    'track_id %s is already in playlist_id %s',
+                    NEW.track_id, NEW.playlist_id),
+                HINT = 'Remove the existing entry before re-adding, '
+                       'or choose a different track.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE TRIGGER trg_prevent_duplicate_playlist_track
+    BEFORE INSERT ON playlist_tracks
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_prevent_duplicate_playlist_track();

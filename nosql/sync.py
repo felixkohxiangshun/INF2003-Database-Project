@@ -106,16 +106,17 @@ def sync_artists(pg_cur, session):
 def sync_tracks(pg_cur, session):
     print("\n  Syncing Tracks...")
     pg_cur.execute("""
-        SELECT t.track_id, t.title, g.name AS genre
+        SELECT t.track_id, t.title, t.play_count, g.name AS genre
         FROM tracks t
         LEFT JOIN genres g ON g.genre_id = t.genre_id
     """)
-    rows = [{"track_id": r["track_id"], "title": r["title"], "genre": r["genre"]} for r in pg_cur.fetchall()]
+    rows = [{"track_id": r["track_id"], "title": r["title"], "genre": r["genre"], "play_count": r["play_count"]} for r in pg_cur.fetchall()]
     n = run_batch(session, """
         UNWIND $rows AS row
         MERGE (t:Track {track_id: row.track_id})
-        SET t.title = row.title,
-            t.genre = row.genre
+        SET t.title      = row.title,
+            t.genre      = row.genre,
+            t.play_count = row.play_count
     """, rows)
     print(f"    {n} tracks synced")
 
@@ -191,19 +192,42 @@ def sync_follows(pg_cur, session):
     print(f"    {n} FOLLOWS edges synced")
 
 
+def ensure_constraints(session):
+    """Create uniqueness constraints and indexes if they don't exist.
+    Constraints create backing indexes automatically, making every
+    MERGE lookup O(log n) instead of a full graph scan."""
+    print("\n  Ensuring Neo4j constraints and indexes...")
+    stmts = [
+        "CREATE CONSTRAINT user_id_unique IF NOT EXISTS FOR (u:User) REQUIRE u.user_id IS UNIQUE",
+        "CREATE CONSTRAINT track_id_unique IF NOT EXISTS FOR (t:Track) REQUIRE t.track_id IS UNIQUE",
+        "CREATE CONSTRAINT artist_id_unique IF NOT EXISTS FOR (a:Artist) REQUIRE a.artist_id IS UNIQUE",
+        "CREATE INDEX track_genre_index IF NOT EXISTS FOR (t:Track) ON (t.genre)",
+    ]
+    for s in stmts:
+        session.run(s)
+    print("    Constraints and indexes ready")
+
+
 def seed_similar_to(session):
+    """Build SIMILAR_TO edges between artists who share genres.
+
+    Previous approach: matched ALL (t1, t2) track pairs globally, then
+    filtered by genre — O(tracks²) which is a full Cartesian product.
+
+    Fixed approach: group artists BY genre first, then pair only within
+    each genre. With 8 genres and ~50 artists the inner set is tiny.
+    """
     print("\n  Computing SIMILAR_TO relationships (shared genres)...")
-    print("    This may take a few minutes on a large graph...")
     session.run("""
-        MATCH (a1:Artist)<-[:PERFORMED_BY]-(t1:Track),
-              (a2:Artist)<-[:PERFORMED_BY]-(t2:Track)
-        WHERE a1 <> a2
-          AND t1.genre = t2.genre
-          AND t1.genre IS NOT NULL
-        WITH a1, a2, count(DISTINCT t1.genre) AS shared_genres
-        WHERE shared_genres > 0
+        MATCH (a:Artist)<-[:PERFORMED_BY]-(t:Track)
+        WHERE t.genre IS NOT NULL
+        WITH t.genre AS genre, collect(DISTINCT a) AS artists
+        WHERE size(artists) > 1
+        UNWIND range(0, size(artists) - 2) AS i
+        UNWIND range(i + 1, size(artists) - 1) AS j
+        WITH artists[i] AS a1, artists[j] AS a2
         MERGE (a1)-[r:SIMILAR_TO]-(a2)
-        SET r.similarity_score = shared_genres
+        SET r.similarity_score = coalesce(r.similarity_score, 0) + 1
     """)
     print("    SIMILAR_TO relationships computed")
 
@@ -219,6 +243,7 @@ def main():
 
     try:
         with driver.session() as session:
+            ensure_constraints(session)
             sync_users(pg_cur, session)
             sync_artists(pg_cur, session)
             sync_tracks(pg_cur, session)
