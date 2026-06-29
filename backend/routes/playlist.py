@@ -262,9 +262,27 @@ def add_track(playlist_id: int):
 
     if not track_id:
         return jsonify({"error": "track_id is required"}), 400
+    try:
+        track_id = int(track_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "track_id must be an integer"}), 400
+
+    if position is not None:
+        try:
+            position = int(position)
+            if position < 1:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({"error": "position must be a positive integer"}), 400
 
     if not query_one("SELECT 1 FROM tracks WHERE track_id=%(id)s", {"id": track_id}):
         return jsonify({"error": "Track not found"}), 404
+
+    if query_one(
+        "SELECT 1 FROM playlist_tracks WHERE playlist_id=%(pid)s AND track_id=%(tid)s",
+        {"pid": playlist_id, "tid": track_id},
+    ):
+        return jsonify({"error": "Track already in playlist"}), 409
 
     try:
         if position is None:
