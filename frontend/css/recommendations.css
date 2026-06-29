@@ -1,0 +1,35 @@
+/* ============================================================
+   Resonate — Recommendation cards (For You view)
+   ============================================================ */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+.rec-card {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.15s ease;
+}
+.rec-card:hover { transform: translateY(-3px); border-color: var(--line-2); }
+.rec-card__cover {
+  aspect-ratio: 1;
+  border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--ink-3), var(--ink));
+  display: grid; place-items: center;
+  font-size: 2rem; color: var(--text-faint);
+  margin-bottom: 12px;
+}
+.rec-card__title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec-card__artist { color: var(--text-dim); font-size: 0.85rem; }
+.rec-card__score {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 10px;
+  font-family: var(--font-mono); font-size: 0.74rem;
+  color: var(--lav); background: var(--lav-soft);
+  padding: 3px 9px; border-radius: 999px;
+}

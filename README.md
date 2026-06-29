@@ -66,63 +66,61 @@ INF2003 Database Project/
 
 ## Quick start
 
-### Prerequisites (Install)
+### Prerequisites
 - Python 3.10+
-- PostgreSQL 15+
-- Neo4j 5+ (Community Edition)
+- PostgreSQL 15+ (running locally, e.g. via pgAdmin or Homebrew)
+- Neo4j 5+ Community Edition (running locally on default ports 7474/7687)
 
 ### 1. Clone the repo
 
-### 2. Create your Branch
-```bash
-git checkout -b m2/sql-queries    # M2 runs this
-git checkout -b m3/neo4j-setup    # M3 runs this
-git checkout -b m4/backend        # M4 runs this
-git checkout -b m5/frontend       # M5 runs this
-git checkout -b m6/backend2       # M6 runs this
-```
-Once you want to commit run this commands
-```bash
-git add .
-git commit -m "<Description>"
-git push 
-```
-
-### 3. Set up Python environment (M4)
+### 2. Set up Python environment
 ```bash
 python3 -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
-pip3 install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables (M2 & M3)
+### 3. Configure environment variables
 ```bash
 cp .env.example .env
 # Edit .env with your PostgreSQL and Neo4j credentials
 ```
 
-### 5. Create the database (SKIP)
+### 4. Create the database and apply schema
 ```bash
-createdb music_streaming        # or use pgAdmin
+createdb music_streaming        # or create via pgAdmin
 psql -d music_streaming -f sql/schema.sql
 psql -d music_streaming -f sql/triggers.sql
 ```
 
-### 6. Download the dataset (COMPLETED)
-Download **Spotify Tracks Dataset** from Kaggle:
+### 5. Download the dataset
+Download the **Spotify Tracks Dataset** from Kaggle:
 https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset
 
-Place `dataset.csv` inside the `data/` folder (already gitignored).
+Place `dataset.csv` inside the `data/` folder.
 
-### 7. Seed the database (SKIP)
+### 6. Seed PostgreSQL
 ```bash
 python3 sql/seed.py
 ```
 
-### 8. Run the app (once M4 is ready)
+### 7. Set up Neo4j constraints and sync data
+```bash
+# In Neo4j Browser (http://localhost:7474), run:
+# :source nosql/setup.cypher
+
+# Then from terminal:
+python3 nosql/sync.py
+```
+
+### 8. Run the app
 ```bash
 python3 backend/app.py
 ```
+
+Open http://localhost:5001 in your browser.
+
+**Demo credentials:** alice@example.com / password123  or  bob@example.com / password123
 
 ## Deadlines
 

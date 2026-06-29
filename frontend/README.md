@@ -4,8 +4,8 @@
 
 | Page | Route | Key features |
 |------|-------|-------------|
-| Login / Register | `/login` | Form → POST /login |
-| Home / Browse | `/` | Search tracks, browse genres |
+| Login / Register | `/login` | Form → POST /login | EDIT: login is located at base url
+| Home / Browse | `/` | Search tracks, browse genres | EDIT: under /browse
 | Track detail | `/tracks/<id>` | Play button, add to playlist |
 | My Playlists | `/playlists` | Create, edit, delete playlists |
 | Recommendations | `/recommend` | Cards from Neo4j traversal |

@@ -1,0 +1,112 @@
+/* ============================================================
+   Resonate — App shell layout (sidebar, topbar, main, chips)
+   ============================================================ */
+
+.shell {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  grid-template-rows: 1fr auto;
+  height: 100vh;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  grid-row: 1 / 2;
+  background: var(--ink-2);
+  border-right: 1px solid var(--line);
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.nav__link:hover { background: var(--ink-3); color: var(--text); }
+.nav__link.is-active { background: var(--coral-soft); color: var(--coral-2); }
+.nav__icon { width: 18px; text-align: center; font-size: 1.05rem; }
+
+.sidebar__foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
+.userchip { display: flex; align-items: center; gap: 11px; }
+.userchip__avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--coral), var(--lav));
+  color: #1a0e1f;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.userchip__meta { display: flex; flex-direction: column; line-height: 1.2; }
+.userchip__name { font-weight: 600; }
+.userchip__plan { font-size: 0.76rem; color: var(--text-faint); }
+
+/* ---------- Main column ---------- */
+.main {
+  grid-row: 1 / 2;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--ink);
+}
+.search {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+  max-width: 460px;
+}
+.search__icon {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+}
+.search input {
+  width: 100%;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 11px 16px 11px 40px;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.search input:focus { outline: none; border-color: var(--lav); box-shadow: 0 0 0 3px var(--lav-soft); }
+
+/* ---------- Genre chips bar ---------- */
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.genre-chips-bar { padding: 14px 28px; border-bottom: 1px solid var(--line); }
+.chip {
+  white-space: nowrap;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.chip:hover { border-color: var(--lav); color: var(--text); }
+.chip.is-active { background: var(--lav-soft); border-color: var(--lav); color: var(--lav); }
+
+.view-root { flex: 1; padding: 28px; }

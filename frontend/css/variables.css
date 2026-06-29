@@ -1,0 +1,67 @@
+/* ============================================================
+   Resonate — CSS custom properties + base reset
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --ink:    #16111F;
+  --ink-2:  #1E1829;
+  --ink-3:  #271F35;
+  --line:   rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --text:       #F2ECF7;
+  --text-dim:   #A99FB8;
+  --text-faint: #6E6580;
+
+  /* Accents */
+  --coral:      #FF6B4A;   /* primary action — play */
+  --coral-2:    #FF8A6E;
+  --coral-soft: rgba(255, 107, 74, 0.14);
+  --lav:        #B79CFF;   /* data / genre metadata */
+  --lav-soft:   rgba(183, 156, 255, 0.14);
+  --mint:       #5BD6A8;   /* success */
+
+  /* Type */
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-body:    "Inter", system-ui, sans-serif;
+  --font-mono:    "Space Mono", ui-monospace, monospace;
+
+  /* Shape */
+  --r-sm: 10px;
+  --r:    16px;
+  --r-lg: 22px;
+
+  --shadow: 0 18px 50px -24px rgba(0, 0, 0, 0.8);
+}
+
+* { box-sizing: border-box; }
+
+/* The [hidden] attribute must win over class-level display rules */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--ink-3);
+  padding: 1px 5px;
+  border-radius: 5px;
+  color: var(--lav);
+}

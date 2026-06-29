@@ -1,0 +1,59 @@
+/* ============================================================
+   Resonate — Persistent player bar (signature UI element)
+   ============================================================ */
+
+.player {
+  grid-column: 1 / -1;
+  grid-row: 2 / 3;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  background: var(--ink-2);
+  border-top: 1px solid var(--line);
+  padding: 12px 24px;
+}
+.player[data-empty="true"] { opacity: 0.7; }
+.player__now { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.player__cover {
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--ink-3), var(--ink));
+  display: grid; place-items: center;
+  color: var(--text-faint);
+}
+.player[data-empty="false"] .player__cover {
+  background: linear-gradient(135deg, var(--coral), var(--lav));
+  color: #1a0e1f;
+}
+.player__meta { min-width: 0; display: flex; flex-direction: column; }
+.player__title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player__artist { font-size: 0.82rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.player__controls { display: flex; align-items: center; gap: 16px; justify-self: center; }
+.player__btn {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--text);
+  color: var(--ink);
+  font-size: 1rem;
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: transform 0.1s ease;
+}
+.player__btn:hover:not(:disabled) { transform: scale(1.06); }
+.player__btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.eq { display: flex; align-items: flex-end; gap: 3px; height: 22px; width: 28px; }
+.eq span { flex: 1; background: var(--coral); border-radius: 2px; height: 30%; }
+.player.is-playing .eq span { animation: eq 0.9s ease-in-out infinite; }
+.player.is-playing .eq span:nth-child(2) { animation-delay: 0.2s; }
+.player.is-playing .eq span:nth-child(3) { animation-delay: 0.4s; }
+.player.is-playing .eq span:nth-child(4) { animation-delay: 0.1s; }
+@keyframes eq { 0%, 100% { height: 25%; } 50% { height: 100%; } }
+
+.player__data { justify-self: end; text-align: right; }
+.player__data-label { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); display: block; }
+.player__data-value { font-family: var(--font-mono); font-size: 1.1rem; color: var(--lav); }
+.player__data-value.bump { animation: bump 0.5s ease; color: var(--coral-2); }

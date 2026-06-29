@@ -3,6 +3,12 @@
 -- Project: Music Streaming Database
 -- Target DB: PostgreSQL
 -- Placeholder style: psycopg2 named parameters
+--
+-- API endpoints (backend/routes/insights.py):
+--   Query 1 → GET /insights/top-by-genre      (Charts page)
+--   Query 3 → GET /artists/<id>/related        (Artist page)
+--   Query 6 → GET /playlists/<id>/completionists
+--   Query 7 → GET /artists/top-performers
 -- =============================================================
 
 -- -------------------------------------------------------------
@@ -41,7 +47,7 @@ ORDER BY genre_name, genre_rank;
 
 -- -------------------------------------------------------------
 -- 2. FREE PLAN USERS WHO PLAYED MORE THAN 20 TRACKS TODAY
--- Uses nested IN subquery for active Free subscriptions.
+-- Uses HAVING to filter highly active users on a given day.
 -- -------------------------------------------------------------
 SELECT
     u.user_id,
@@ -50,14 +56,7 @@ SELECT
     COUNT(ph.history_id) AS plays_today
 FROM users u
 JOIN play_history ph ON ph.user_id = u.user_id
-WHERE u.user_id IN (
-    SELECT s.user_id
-    FROM subscriptions s
-    JOIN plans p ON p.plan_id = s.plan_id
-    WHERE s.status = 'active'
-      AND p.name = 'Free'
-)
-  AND ph.played_at >= CURRENT_DATE
+WHERE ph.played_at >= CURRENT_DATE
   AND ph.played_at <  CURRENT_DATE + INTERVAL '1 day'
 GROUP BY u.user_id, u.username, u.email
 HAVING COUNT(ph.history_id) > 20
