@@ -36,7 +36,7 @@ def create_app() -> Flask:
     
     # Configuration
     app.config.update(
-        SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me"),
+        SECRET_KEY = os.getenv("FLASK_SECRET_KEY") or os.getenv("SECRET_KEY", "dev-secret-change-me"),
         SESSION_COOKIE_HTTPONLY = True,
         SESSION_COOKIE_SAMESITE = "Lax",
         PERMANENT_SESSION_LIFETIME = timedelta(days=7),

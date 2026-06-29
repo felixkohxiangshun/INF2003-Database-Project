@@ -16,9 +16,9 @@ backend/
 ├── graph.py            # Neo4j driver wrapper
 ├── routes/
 │   ├── auth.py         # POST /login, POST /logout, POST /register
-│   ├── tracks.py       # GET /tracks, GET /tracks/<id>
-│   ├── playlists.py    # CRUD /playlists
-│   ├── history.py      # POST /play  (dual-write: SQL + Neo4j)
+│   ├── tracks.py       # GET /tracks, GET /tracks/<id>, POST /play
+│   ├── playlist.py     # CRUD /playlists
+│   ├── history.py      # GET /history, GET /stats
 │   └── recommendations.py  # GET /recommend  (Neo4j query)
 └── middleware/
     └── auth_required.py    # Session guard decorator
@@ -33,7 +33,7 @@ When a user plays a track, `POST /play` must:
 2. MERGE the `LISTENED_TO` edge in Neo4j (increment count property)
 
 ```python
-# routes/history.py (pseudocode)
+# routes/tracks.py (pseudocode)
 def log_play(user_id, track_id):
     # 1. SQL
     pg.execute("INSERT INTO play_history (user_id, track_id) VALUES (%s, %s)", (user_id, track_id))
@@ -54,4 +54,3 @@ DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
 FLASK_SECRET_KEY, FLASK_DEBUG
 ```
-

@@ -272,6 +272,22 @@ def update_profile():
     if "user_id" in session and username:
         session["username"] = updated["username"]
 
+    if username:
+        try:
+            from backend.graph import get_driver
+            driver = get_driver()
+            if driver:
+                with driver.session() as s:
+                    s.run(
+                        """
+                        MERGE (u:User {user_id: $user_id})
+                        SET   u.username = $username
+                        """,
+                        {"user_id": g.user_id, "username": updated["username"]},
+                    )
+        except Exception:
+            log.warning("Neo4j user update failed for user_id=%s", g.user_id)
+
     updated["created_at"] = str(updated["created_at"])
     return jsonify(updated)
 

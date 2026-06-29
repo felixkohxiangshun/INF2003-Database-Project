@@ -497,7 +497,7 @@ def main():
             ORDER BY genre_name, genre_rank
             """)
 
-        run(cur, "2. USERS WHO PLAYED MORE THAN 20 TRACKS TODAY",
+        run(cur, "2. HIGH-ACTIVITY USERS WHO PLAYED MORE THAN 20 TRACKS TODAY",
             """
             SELECT u.user_id, u.username, u.email, COUNT(ph.history_id) AS plays_today
             FROM users u

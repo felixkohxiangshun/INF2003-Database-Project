@@ -17,7 +17,7 @@ All tables are in `sql/schema.sql`. Key relationships:
 
 - `play_history(user_id, track_id)` — log a play here; trigger auto-updates `tracks.play_count`
 - `playlist_tracks(playlist_id, track_id, position)` — junction table, position must be unique per playlist
-- `subscriptions.status` — must be one of `'active'`, `'cancelled'`, `'expired'`
+- `user_follows_artist(user_id, artist_id)` — many-to-many follow graph used for artist recommendations
 
 ## Demo users (already seeded)
 

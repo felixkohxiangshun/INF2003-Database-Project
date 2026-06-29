@@ -206,8 +206,16 @@ def follow_status(artist_id: int):
 @auth_required
 def follow_artist(artist_id: int):
     """Follow an artist (idempotent)."""
-    if not query_one("SELECT 1 FROM artists WHERE artist_id=%(id)s", {"id": artist_id}):
+    artist = query_one(
+        "SELECT artist_id, name FROM artists WHERE artist_id=%(id)s",
+        {"id": artist_id},
+    )
+    if not artist:
         return jsonify({"error": "Artist not found"}), 404
+    user = query_one(
+        "SELECT username FROM users WHERE user_id = %(id)s",
+        {"id": g.user_id},
+    )
 
     rows = execute(
         """
@@ -220,6 +228,16 @@ def follow_artist(artist_id: int):
     )
 
     followed_at = str(rows[0]["followed_at"]) if rows else None
+    if followed_at is None:
+        existing = query_one(
+            """
+            SELECT followed_at
+            FROM   user_follows_artist
+            WHERE  user_id = %(uid)s AND artist_id = %(aid)s
+            """,
+            {"uid": g.user_id, "aid": artist_id},
+        )
+        followed_at = str(existing["followed_at"]) if existing else None
 
     # Real-time Neo4j write
     try:
@@ -230,10 +248,19 @@ def follow_artist(artist_id: int):
                 s.run(
                     """
                     MERGE (u:User   {user_id:   $user_id})
+                    SET   u.username = $username
                     MERGE (a:Artist {artist_id: $artist_id})
-                    MERGE (u)-[:FOLLOWS]->(a)
+                    SET   a.name = $artist_name
+                    MERGE (u)-[r:FOLLOWS]->(a)
+                    SET   r.followed_at = $followed_at
                     """,
-                    {"user_id": g.user_id, "artist_id": artist_id},
+                    {
+                        "user_id":     g.user_id,
+                        "username":    user["username"] if user else getattr(g, "username", None),
+                        "artist_id":   artist_id,
+                        "artist_name": artist["name"],
+                        "followed_at": followed_at,
+                    },
                 )
     except Exception:
         log.warning("Neo4j follow write failed user=%s artist=%s", g.user_id, artist_id)
@@ -284,8 +311,21 @@ def log_play():
 
     if not track_id:
         return jsonify({"error": "track_id is required"}), 400
+    try:
+        track_id = int(track_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "track_id must be an integer"}), 400
 
-    if not query_one("SELECT 1 FROM tracks WHERE track_id=%(id)s", {"id": track_id}):
+    track = query_one(
+        """
+        SELECT t.track_id, t.title, g.name AS genre
+        FROM   tracks t
+        LEFT JOIN genres g ON g.genre_id = t.genre_id
+        WHERE  t.track_id = %(id)s
+        """,
+        {"id": track_id},
+    )
+    if not track:
         return jsonify({"error": "Track not found"}), 404
 
     # Insert play — trigger fires AFTER this, incrementing play_count
@@ -296,8 +336,17 @@ def log_play():
 
     # Read play_count in a separate query — trigger has now fired so count is accurate
     row = query_one(
-        "SELECT play_count FROM tracks WHERE track_id = %(track_id)s",
-        {"track_id": track_id},
+        """
+        SELECT t.play_count,
+               t.title,
+               g.name AS genre,
+               u.username
+        FROM   tracks t
+        JOIN   users u ON u.user_id = %(user_id)s
+        LEFT JOIN genres g ON g.genre_id = t.genre_id
+        WHERE  t.track_id = %(track_id)s
+        """,
+        {"track_id": track_id, "user_id": g.user_id},
     )
     play_count = row["play_count"] if row else None
 
@@ -310,12 +359,23 @@ def log_play():
                 s.run(
                     """
                     MERGE (u:User  {user_id:  $user_id})
+                    SET   u.username = $username
                     MERGE (t:Track {track_id: $track_id})
+                    SET   t.title = $title,
+                          t.genre = $genre,
+                          t.play_count = $play_count
                     MERGE (u)-[r:LISTENED_TO]->(t)
                     ON CREATE SET r.count = 1,             r.last_played = datetime()
                     ON MATCH  SET r.count = r.count + 1,  r.last_played = datetime()
                     """,
-                    {"user_id": g.user_id, "track_id": track_id},
+                    {
+                        "user_id":    g.user_id,
+                        "username":   row["username"] if row else getattr(g, "username", None),
+                        "track_id":   track_id,
+                        "title":      row["title"] if row else track["title"],
+                        "genre":      row["genre"] if row else track["genre"],
+                        "play_count": play_count,
+                    },
                 )
     except Exception:
         log.warning("Neo4j real-time write failed for user=%s track=%s", g.user_id, track_id)

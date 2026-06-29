@@ -20,5 +20,6 @@ def auth_required(f):
         if user_id is None:
             return jsonify({"error": "Authentication required"}), 401
         g.user_id = user_id
+        g.username = session.get("username")
         return f(*args, **kwargs)
     return decorated

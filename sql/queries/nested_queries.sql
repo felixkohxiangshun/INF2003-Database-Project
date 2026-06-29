@@ -46,7 +46,7 @@ WHERE genre_rank <= 5
 ORDER BY genre_name, genre_rank;
 
 -- -------------------------------------------------------------
--- 2. FREE PLAN USERS WHO PLAYED MORE THAN 20 TRACKS TODAY
+-- 2. HIGH-ACTIVITY USERS WHO PLAYED MORE THAN 20 TRACKS TODAY
 -- Uses HAVING to filter highly active users on a given day.
 -- -------------------------------------------------------------
 SELECT

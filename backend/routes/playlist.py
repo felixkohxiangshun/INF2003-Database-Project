@@ -11,7 +11,7 @@ import logging
 from flask import Blueprint, g, jsonify, request
 import psycopg2.errors
 
-from backend.db import execute, query, query_one
+from backend.db import execute, get_conn, query, query_one
 from backend.middleware.auth_required import auth_required
 from backend.utils import serialize as _serialize
 
@@ -262,9 +262,31 @@ def add_track(playlist_id: int):
 
     if not track_id:
         return jsonify({"error": "track_id is required"}), 400
+    try:
+        track_id = int(track_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "track_id must be an integer"}), 400
+
+    if position is not None:
+        try:
+            position = int(position)
+            if position < 1:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({"error": "position must be a positive integer"}), 400
 
     if not query_one("SELECT 1 FROM tracks WHERE track_id=%(id)s", {"id": track_id}):
         return jsonify({"error": "Track not found"}), 404
+
+    if query_one(
+        """
+        SELECT 1
+        FROM   playlist_tracks
+        WHERE  playlist_id = %(pid)s AND track_id = %(tid)s
+        """,
+        {"pid": playlist_id, "tid": track_id},
+    ):
+        return jsonify({"error": "Track already in playlist"}), 409
 
     try:
         if position is None:
@@ -280,22 +302,48 @@ def add_track(playlist_id: int):
                 {"pid": playlist_id, "tid": track_id},
             )
         else:
-            execute(
+            next_position = query_one(
                 """
-                UPDATE playlist_tracks
-                SET    position = position + 1
-                WHERE  playlist_id = %(pid)s AND position >= %(pos)s
+                SELECT COALESCE(MAX(position), 0) + 1 AS value
+                FROM   playlist_tracks
+                WHERE  playlist_id = %(pid)s
                 """,
-                {"pid": playlist_id, "pos": position},
+                {"pid": playlist_id},
             )
-            rows = execute(
-                """
-                INSERT INTO playlist_tracks (playlist_id, track_id, position)
-                VALUES (%(pid)s, %(tid)s, %(pos)s)
-                RETURNING playlist_id, track_id, position
-                """,
-                {"pid": playlist_id, "tid": track_id, "pos": position},
-            )
+            position = min(position, next_position["value"] if next_position else 1)
+
+            conn = get_conn()
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(
+                        """
+                        UPDATE playlist_tracks
+                        SET    position = position + 100000
+                        WHERE  playlist_id = %(pid)s AND position >= %(pos)s
+                        """,
+                        {"pid": playlist_id, "pos": position},
+                    )
+                    cur.execute(
+                        """
+                        INSERT INTO playlist_tracks (playlist_id, track_id, position)
+                        VALUES (%(pid)s, %(tid)s, %(pos)s)
+                        RETURNING playlist_id, track_id, position
+                        """,
+                        {"pid": playlist_id, "tid": track_id, "pos": position},
+                    )
+                    rows = [dict(r) for r in cur.fetchall()]
+                    cur.execute(
+                        """
+                        UPDATE playlist_tracks
+                        SET    position = position - 99999
+                        WHERE  playlist_id = %(pid)s AND position >= 100000
+                        """,
+                        {"pid": playlist_id},
+                    )
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
     except psycopg2.errors.RaiseException:
         # trg_prevent_duplicate_playlist_track raised 'duplicate_playlist_track'
         return jsonify({"error": "Track already in playlist"}), 409

@@ -236,14 +236,25 @@ def create_track():
         return jsonify({"error": "album_id, title and duration_sec are required"}), 400
 
     try:
+        album_id = int(album_id)
         duration_sec = int(duration_sec)
-        if duration_sec <= 0:
+        if album_id <= 0 or duration_sec <= 0:
             raise ValueError
     except (ValueError, TypeError):
-        return jsonify({"error": "duration_sec must be a positive integer"}), 400
+        return jsonify({"error": "album_id and duration_sec must be positive integers"}), 400
+
+    if genre_id in ("", None):
+        genre_id = None
+    else:
+        try:
+            genre_id = int(genre_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": "genre_id must be an integer"}), 400
 
     if not query_one("SELECT 1 FROM albums WHERE album_id = %(id)s", {"id": album_id}):
         return jsonify({"error": "Album not found"}), 404
+    if genre_id and not query_one("SELECT 1 FROM genres WHERE genre_id = %(id)s", {"id": genre_id}):
+        return jsonify({"error": "Genre not found"}), 404
 
     rows = execute(
         """
@@ -271,6 +282,7 @@ def update_track(track_id: int):
     title        = (body.get("title") or "").strip() or None
     duration_sec = body.get("duration_sec")
     genre_id     = body.get("genre_id")
+    update_genre = "genre_id" in body
 
     if duration_sec is not None:
         try:
@@ -280,37 +292,74 @@ def update_track(track_id: int):
         except (ValueError, TypeError):
             return jsonify({"error": "duration_sec must be a positive integer"}), 400
 
+    if update_genre:
+        if genre_id in ("", None):
+            genre_id = None
+        else:
+            try:
+                genre_id = int(genre_id)
+            except (ValueError, TypeError):
+                return jsonify({"error": "genre_id must be an integer"}), 400
+
+    if genre_id and not query_one("SELECT 1 FROM genres WHERE genre_id = %(id)s", {"id": genre_id}):
+        return jsonify({"error": "Genre not found"}), 404
+
     rows = execute(
         """
         UPDATE tracks
         SET title        = COALESCE(%(title)s,        title),
             duration_sec = COALESCE(%(duration_sec)s, duration_sec),
-            genre_id     = COALESCE(%(genre_id)s,     genre_id)
+            genre_id     = CASE
+                               WHEN %(update_genre)s THEN %(genre_id)s
+                               ELSE genre_id
+                           END
         WHERE track_id = %(id)s
         RETURNING track_id, album_id, genre_id, title, duration_sec, play_count
         """,
         {
             "title": title, "duration_sec": duration_sec,
-            "genre_id": genre_id, "id": track_id,
+            "genre_id": genre_id, "update_genre": update_genre,
+            "id": track_id,
         },
     )
     if not rows:
         return jsonify({"error": "Track not found"}), 404
 
-    # Update title in Neo4j
+    track = rows[0]
+    graph_row = query_one(
+        """
+        SELECT t.track_id, t.title, t.play_count, g.name AS genre
+        FROM   tracks t
+        LEFT JOIN genres g ON g.genre_id = t.genre_id
+        WHERE  t.track_id = %(id)s
+        """,
+        {"id": track_id},
+    )
+
+    # Update title/genre in Neo4j
     try:
         from backend.graph import get_driver
         driver = get_driver()
-        if driver and title:
+        if driver and graph_row:
             with driver.session() as s:
                 s.run(
-                    "MATCH (t:Track {track_id: $id}) SET t.title = $title",
-                    {"id": track_id, "title": rows[0]["title"]},
+                    """
+                    MATCH (t:Track {track_id: $id})
+                    SET   t.title = $title,
+                          t.genre = $genre,
+                          t.play_count = $play_count
+                    """,
+                    {
+                        "id":         track_id,
+                        "title":      graph_row["title"],
+                        "genre":      graph_row["genre"],
+                        "play_count": graph_row["play_count"],
+                    },
                 )
     except Exception:
         log.warning("Neo4j track update failed for track_id=%s", track_id)
 
-    return jsonify(rows[0])
+    return jsonify(track)
 
 
 @bp.route("/tracks/<int:track_id>", methods=["DELETE"])
@@ -408,9 +457,15 @@ def _neo4j_sync_track(track_id: int, title: str, album_id: int):
             s.run(
                 """
                 MERGE (t:Track {track_id: $track_id})
-                SET t.title = $title, t.play_count = 0
+                SET t.title = $title,
+                    t.genre = $genre,
+                    t.play_count = 0
                 """,
-                {"track_id": track_id, "title": title},
+                {
+                    "track_id": track_id,
+                    "title":    title,
+                    "genre":    artist_row["genre"] if artist_row else None,
+                },
             )
             if artist_row:
                 s.run(
