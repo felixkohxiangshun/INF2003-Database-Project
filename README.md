@@ -114,21 +114,57 @@ INF2003-Database-Project/
 
 Before starting, ensure the following are installed on your machine:
 
-| Requirement | Version | Notes |
+| Requirement | Version | Check |
 |---|---|---|
-| Python | 3.10+ | `python3 --version` |
+| Python | 3.10+ | `python3 --version` (macOS) / `python --version` (Windows) |
 | pip | latest | bundled with Python |
 | PostgreSQL | 15+ | running locally on port 5432 |
 | Neo4j Desktop or Community | 5+ | running locally on ports 7474 / 7687 |
+| Git | any | `git --version` |
 
-**Install PostgreSQL (macOS):**
+---
+
+### Install Python
+
+**macOS:**
+```bash
+brew install python@3.11
+```
+Or download the installer from https://www.python.org/downloads/
+
+**Windows:**
+Download and run the installer from https://www.python.org/downloads/
+> During installation, check **"Add Python to PATH"**.
+
+---
+
+### Install PostgreSQL
+
+**macOS:**
 ```bash
 brew install postgresql@15
 brew services start postgresql@15
 ```
 
-**Install Neo4j:**
-Download Neo4j Desktop from https://neo4j.com/download/ and create a local database, or use Neo4j Community Server. Start it and note your password.
+**Windows:**
+Download the installer from https://www.postgresql.org/download/windows/
+Run the installer (includes pgAdmin and `psql`). Note the password you set for the `postgres` user.
+
+> After installation on Windows, add PostgreSQL's `bin` folder to your PATH so `psql` and `createdb` are available in the terminal:
+> `C:\Program Files\PostgreSQL\15\bin`
+
+---
+
+### Install Neo4j
+
+**macOS and Windows:**
+Download **Neo4j Desktop** from https://neo4j.com/download/ — this is the easiest option. After installing:
+1. Open Neo4j Desktop
+2. Create a new **Local DBMS**
+3. Set a password and note it down
+4. Click **Start** to run the database
+
+> Neo4j runs on bolt://localhost:7687 (Bolt) and http://localhost:7474 (Browser UI) by default.
 
 ---
 
@@ -136,7 +172,14 @@ Download Neo4j Desktop from https://neo4j.com/download/ and create a local datab
 
 ### 1. Clone the repository
 
+**macOS:**
 ```bash
+git clone <repo-url>
+cd INF2003-Database-Project
+```
+
+**Windows (Command Prompt or PowerShell):**
+```cmd
 git clone <repo-url>
 cd INF2003-Database-Project
 ```
@@ -145,16 +188,34 @@ cd INF2003-Database-Project
 
 ### 2. Create a Python virtual environment
 
+**macOS:**
 ```bash
 python3 -m venv venv
-source venv/bin/activate          # macOS / Linux
-# venv\Scripts\activate           # Windows
+source venv/bin/activate
 ```
+
+**Windows (Command Prompt):**
+```cmd
+python -m venv venv
+venv\Scripts\activate.bat
+```
+
+**Windows (PowerShell):**
+```powershell
+python -m venv venv
+venv\Scripts\Activate.ps1
+```
+
+> If PowerShell blocks script execution, run first:
+> `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+When active, your terminal prompt will show `(venv)`. To deactivate later, run `deactivate`.
 
 ---
 
 ### 3. Install Python dependencies
 
+**macOS and Windows (with venv active):**
 ```bash
 pip install -r requirements.txt
 ```
@@ -172,11 +233,22 @@ Dependencies installed:
 
 ### 4. Configure environment variables
 
+**macOS:**
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
+**Windows (Command Prompt):**
+```cmd
+copy .env.example .env
+```
+
+**Windows (PowerShell):**
+```powershell
+Copy-Item .env.example .env
+```
+
+Open `.env` in any text editor and fill in your credentials:
 
 ```env
 # PostgreSQL
@@ -192,29 +264,60 @@ NEO4J_USER=neo4j
 NEO4J_PASSWORD=<your_neo4j_password>
 
 # Flask
-SECRET_KEY=<generate with: python3 -c "import secrets; print(secrets.token_hex(32))">
-FLASK_DEBUG=1        # set to 0 for production
-FLASK_PORT=8080      # optional, defaults to 8080
+SECRET_KEY=<generate a random key — see below>
+FLASK_DEBUG=1
+FLASK_PORT=8080
+```
+
+**Generate a SECRET_KEY:**
+
+macOS:
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Windows:
+```cmd
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 ---
 
 ### 5. Create the PostgreSQL database
 
+**macOS:**
 ```bash
 createdb music_streaming
 ```
 
-Or create it via pgAdmin: right-click Databases → Create → name it `music_streaming`.
+**Windows (Command Prompt — run as the postgres user):**
+```cmd
+createdb -U postgres music_streaming
+```
+
+**Alternative (both platforms) — via pgAdmin:**
+1. Open pgAdmin
+2. Right-click **Databases** → **Create** → **Database**
+3. Name it `music_streaming` and click Save
 
 ---
 
 ### 6. Apply the schema and triggers
 
+**macOS:**
 ```bash
 psql -d music_streaming -f sql/schema.sql
 psql -d music_streaming -f sql/triggers.sql
 ```
+
+**Windows:**
+```cmd
+psql -U postgres -d music_streaming -f sql/schema.sql
+psql -U postgres -d music_streaming -f sql/triggers.sql
+```
+
+> If `psql` is not found on Windows, use the full path:
+> `"C:\Program Files\PostgreSQL\15\bin\psql.exe" -U postgres -d music_streaming -f sql/schema.sql`
 
 This creates:
 - **9 tables:** `users`, `genres`, `artists`, `albums`, `tracks`, `play_history`, `playlists`, `playlist_tracks`, `user_follows_artist`
@@ -236,15 +339,19 @@ Place `dataset.csv` inside the `data/` folder:
 data/dataset.csv
 ```
 
+> You need a free Kaggle account to download the file.
+
 ---
 
 ### 8. Seed PostgreSQL
 
+**macOS and Windows (with venv active):**
 ```bash
-python3 sql/seed.py
+python3 sql/seed.py      # macOS
+python sql/seed.py       # Windows
 ```
 
-This parses `dataset.csv` and loads artists, albums, genres, and tracks into PostgreSQL. Expect ~100 genres, thousands of artists and tracks.
+This parses `dataset.csv` and loads artists, albums, genres, and tracks into PostgreSQL. Expect ~100 genres and thousands of artists and tracks.
 
 ---
 
@@ -252,22 +359,33 @@ This parses `dataset.csv` and loads artists, albums, genres, and tracks into Pos
 
 **a) Create constraints and indexes**
 
-Open Neo4j Browser at http://localhost:7474, log in, and run:
+Open Neo4j Browser at http://localhost:7474, log in with your credentials, and paste the contents of `nosql/setup.cypher` into the query box, then run it.
 
-```cypher
-// Paste contents of nosql/setup.cypher
-// Or use :source in the Neo4j Browser desktop app
-```
+Alternatively, if you have `cypher-shell` available:
 
-Or run it from the terminal if you have `cypher-shell` installed:
+**macOS:**
 ```bash
-cypher-shell -u neo4j -p <password> -f nosql/setup.cypher
+cypher-shell -u neo4j -p <your_password> -f nosql/setup.cypher
 ```
+
+**Windows:**
+```cmd
+cypher-shell -u neo4j -p <your_password> -f nosql/setup.cypher
+```
+
+> `cypher-shell` is bundled with Neo4j Desktop. On Windows, find it at:
+> `C:\Users\<you>\.Neo4jDesktop\relate-data\dbmss\<dbms-id>\bin\cypher-shell.bat`
 
 **b) Sync PostgreSQL data into Neo4j**
 
+**macOS:**
 ```bash
 python3 nosql/sync.py
+```
+
+**Windows:**
+```cmd
+python nosql/sync.py
 ```
 
 This creates `Track`, `Artist`, and `User` nodes and `PERFORMED_BY` edges in Neo4j. The Flask app also runs this automatically in the background on startup.
@@ -276,15 +394,21 @@ This creates `Track`, `Artist`, and `User` nodes and `PERFORMED_BY` edges in Neo
 
 ### 10. Run the application
 
+**macOS:**
 ```bash
 python3 -m backend.app
 ```
 
+**Windows:**
+```cmd
+python -m backend.app
+```
+
 Open **http://localhost:8080** in your browser.
 
-> Use `python3 -m backend.app` (not `python3 backend/app.py`) so Python resolves the `backend` package imports correctly.
+> Always use `python3 -m backend.app` / `python -m backend.app` (not `python3 backend/app.py`) so Python resolves the `backend` package imports correctly.
 
-**Demo accounts seeded by `seed.py`:**
+**Demo accounts:**
 ```
 Email:    alice@example.com   Password: password123
 Email:    bob@example.com     Password: password123
@@ -296,16 +420,25 @@ Or register a new account from the login page.
 
 ## Running the Test Suites
 
-Both test scripts require the Flask server to be running first.
+Both test scripts require the Flask server to be running in a separate terminal first.
 
 **Terminal 1 — start the server:**
+
+macOS:
 ```bash
 source venv/bin/activate
 python3 -m backend.app
 ```
 
+Windows:
+```cmd
+venv\Scripts\activate.bat
+python -m backend.app
+```
+
 **Terminal 2 — run tests:**
 
+macOS:
 ```bash
 source venv/bin/activate
 
@@ -313,11 +446,18 @@ source venv/bin/activate
 python3 backend/test_m4_api.py
 
 # M5 — Cross-database integration tests (7 tests)
-# Verifies that each API call writes correctly to BOTH PostgreSQL and Neo4j
 python3 backend/test_m5_integration.py
 ```
 
-**M5 integration tests cover:**
+Windows:
+```cmd
+venv\Scripts\activate.bat
+
+python backend/test_m4_api.py
+python backend/test_m5_integration.py
+```
+
+**M5 integration tests verify:**
 1. `POST /play` — Postgres `play_history` row + `play_count` trigger + Neo4j `LISTENED_TO` edge
 2. `POST /follow` — Postgres `user_follows_artist` row + Neo4j `FOLLOWS` edge
 3. `DELETE /follow` — Both databases cleaned up
