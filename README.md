@@ -24,7 +24,7 @@ A full-stack music streaming and recommendation application built for INF2003 Da
 | M3 | Vania Teng | NoSQL / Neo4j Developer | `nosql/` — graph schema, Cypher queries, sync |
 | M4 | Tan Yan Ting | Backend & Integration | `backend/` — Flask app, API routes, middleware |
 | M5 | Ning Haiquan | Backend & Integration | `backend/` - Graph app, Recommendation engine, History routes |
-| M6 | Liew Jia Jun| Frontend | `frontend/` — SPA views, CSS design system, report |
+| M6 | Liew Jia Jun| Frontend | `frontend/` — HTML templates, CSS design |
 
 ---
 
@@ -59,17 +59,15 @@ INF2003-Database-Project/
 │   ├── startup_sync.py             Background Neo4j sync on startup
 │   ├── middleware/
 │   │   └── auth_required.py        Session auth guard decorator
-│   ├── routes/
-│   │   ├── auth.py                 Register, login, profile, password
-│   │   ├── tracks.py               Browse, search, play, follow artist
-│   │   ├── playlist.py             Playlist CRUD + track management
-│   │   ├── history.py              Play history
-│   │   ├── recommendations.py      Neo4j collaborative filtering
-│   │   ├── artists.py              Artist graph routes
-│   │   ├── admin.py                Admin CRUD (tracks/artists/albums/genres)
-│   │   └── insights.py             Live nested query endpoints
-│   ├── test_m4_api.py              API integration tests (28 tests)
-│   └── test_m5_integration.py      Cross-DB integration tests (7 tests)
+│   └── routes/
+│       ├── auth.py                 Register, login, profile, password
+│       ├── tracks.py               Browse, search, play, follow artist
+│       ├── playlist.py             Playlist CRUD + track management
+│       ├── history.py              Play history
+│       ├── recommendations.py      Neo4j collaborative filtering
+│       ├── artists.py              Artist graph routes
+│       ├── admin.py                Admin CRUD (tracks/artists/albums/genres)
+│       └── insights.py             Live nested query endpoints
 │
 ├── frontend/
 │   ├── index.html
@@ -340,8 +338,6 @@ Place `dataset.csv` inside the `data/` folder:
 data/dataset.csv
 ```
 
-> You need a free Kaggle account to download the file.
-
 ---
 
 ### 8. Seed PostgreSQL
@@ -417,55 +413,6 @@ Email:    bob@example.com     Password: password123
 
 Or register a new account from the login page.
 
----
-
-## Running the Test Suites
-
-Both test scripts require the Flask server to be running in a separate terminal first.
-
-**Terminal 1 — start the server:**
-
-macOS:
-```bash
-source venv/bin/activate
-python3 -m backend.app
-```
-
-Windows:
-```cmd
-venv\Scripts\activate.bat
-python -m backend.app
-```
-
-**Terminal 2 — run tests:**
-
-macOS:
-```bash
-source venv/bin/activate
-
-# M4 — API tests (28 tests covering all HTTP endpoints)
-python3 backend/test_m4_api.py
-
-# M5 — Cross-database integration tests (7 tests)
-python3 backend/test_m5_integration.py
-```
-
-Windows:
-```cmd
-venv\Scripts\activate.bat
-
-python backend/test_m4_api.py
-python backend/test_m5_integration.py
-```
-
-**M5 integration tests verify:**
-1. `POST /play` — Postgres `play_history` row + `play_count` trigger + Neo4j `LISTENED_TO` edge
-2. `POST /follow` — Postgres `user_follows_artist` row + Neo4j `FOLLOWS` edge
-3. `DELETE /follow` — Both databases cleaned up
-4. `trg_prevent_duplicate_playlist_track` — DB-level duplicate rejection returns 409
-5. `trg_audit_users` — Profile update writes to `audit_log`
-6. `GET /recommend` — Neo4j `LISTENED_TO` graph drives recommendations
-7. Node count parity — Neo4j `Track`/`Artist` counts match PostgreSQL
 
 ---
 
