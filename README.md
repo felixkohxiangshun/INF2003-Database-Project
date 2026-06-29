@@ -1,4 +1,4 @@
-# Resonate — INF2003 Music Streaming App
+# Resonate - Music Streaming & Recommendation App
 
 A full-stack music streaming and recommendation application built for INF2003 Database Systems. Demonstrates dual-database architecture with **PostgreSQL** (relational) for persistent storage and **Neo4j** (graph) for relationship-based recommendations.
 
@@ -17,13 +17,14 @@ A full-stack music streaming and recommendation application built for INF2003 Da
 
 ## Team
 
-| Member | Role | Primary Files |
-|---|---|---|
-| M1 | Database Architect | `sql/schema.sql`, `sql/triggers.sql`, `sql/seed.py` |
-| M2 | SQL Developer | `sql/queries/` — CRUD, nested queries, analysis |
-| M3 | NoSQL / Neo4j Developer | `nosql/` — graph schema, Cypher queries, sync |
-| M4 | Backend & Integration | `backend/` — Flask app, API routes, middleware |
-| M5 | Frontend & Report Lead | `frontend/` — SPA views, CSS design system, report |
+| Member | Name | Role | Primary Files |
+|---|---|---|---|
+| M1 | Felix Koh | Database Architect | `sql/schema.sql`, `sql/triggers.sql`, `sql/seed.py` |
+| M2 | Wong Jun Kai | SQL Developer | `sql/queries/` — CRUD, nested queries, analysis |
+| M3 | Vania Teng | NoSQL / Neo4j Developer | `nosql/` — graph schema, Cypher queries, sync |
+| M4 | Tan Yan Ting | Backend & Integration | `backend/` — Flask app, API routes, middleware |
+| M5 | Ning Haiquan | Backend & Integration | `backend/` - Graph app, Recommendation engine, History routes |
+| M6 | Liew Jia Jun| Frontend | `frontend/` — SPA views, CSS design system, report |
 
 ---
 
