@@ -41,12 +41,59 @@ async function renderPlaylistDetail(id) {
       el("strong", {}, "This playlist is empty"), "Add tracks from Browse using the + button."));
   }
   const list = el("div", { class: "tracklist" });
-  p.tracks.forEach((t, i) => list.append(trackRow(t, i + 1, {
-    onRemove: async (track) => {
-      await API.removeFromPlaylist(p.playlist_id, track.track_id);
-      toast(`Removed "${track.title}"`, "ok");
-      router();
-    },
-  })));
+  let dragSrc = null;
+
+  p.tracks.forEach((t, i) => {
+    const row = trackRow(t, i + 1, {
+      onRemove: async (track) => {
+        await API.removeFromPlaylist(p.playlist_id, track.track_id);
+        toast(`Removed "${track.title}"`, "ok");
+        router();
+      },
+    });
+
+    // Drag handle injected before the index/play lead
+    const handle = el("span", { class: "track-row__handle", title: "Drag to reorder" }, "⠿");
+    row.insertBefore(handle, row.firstChild);
+    row.setAttribute("draggable", "true");
+
+    row.addEventListener("dragstart", (e) => {
+      dragSrc = { index: i, track: t };
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(i));
+      setTimeout(() => row.classList.add("is-dragging"), 0);
+    });
+
+    row.addEventListener("dragend", () => {
+      row.classList.remove("is-dragging");
+      list.querySelectorAll(".drag-over").forEach(r => r.classList.remove("drag-over"));
+      dragSrc = null;
+    });
+
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (!dragSrc || dragSrc.index === i) return;
+      list.querySelectorAll(".drag-over").forEach(r => r.classList.remove("drag-over"));
+      row.classList.add("drag-over");
+    });
+
+    row.addEventListener("dragleave", (e) => {
+      if (!row.contains(e.relatedTarget)) row.classList.remove("drag-over");
+    });
+
+    row.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      row.classList.remove("drag-over");
+      if (!dragSrc || dragSrc.index === i) return;
+      try {
+        await API.moveTrack(p.playlist_id, dragSrc.track.track_id, t.position);
+        router();
+      } catch (err) { toast(err.message, "error"); }
+    });
+
+    list.append(row);
+  });
+
   return el("div", {}, back, head, list);
 }

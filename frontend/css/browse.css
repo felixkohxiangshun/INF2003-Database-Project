@@ -104,6 +104,14 @@
   cursor: pointer; font-size: 1.1rem; padding: 4px 8px; border-radius: 8px;
 }
 .track-row__add:hover { color: var(--lav); background: var(--lav-soft); }
+.track-row__handle {
+  cursor: grab; color: var(--text-faint); font-size: 1rem;
+  padding: 0 6px 0 0; user-select: none;
+  opacity: 0; transition: opacity 0.15s;
+}
+.track-row:hover .track-row__handle { opacity: 1; }
+.track-row.is-dragging { opacity: 0.35; }
+.track-row.drag-over { border-top: 2px solid var(--coral); }
 
 /* ---------- Load more ---------- */
 .load-more-wrap {

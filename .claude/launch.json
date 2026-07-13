@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Resonate",
+      "runtimeExecutable": "/Users/felixkoh/Database Project/INF2003-Database-Project/venv/bin/python",
+      "runtimeArgs": ["-m", "flask", "--app", "backend.app", "run", "--port", "8080", "--debug"],
+      "port": 8080,
+      "autoPort": false
+    }
+  ]
+}

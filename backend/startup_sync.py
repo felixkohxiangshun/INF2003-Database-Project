@@ -1,17 +1,4 @@
-"""backend/startup_sync.py
-========================
-Runs the one-time "static" Neo4j seed in a background daemon thread when
-Flask starts.  Handles: constraints, User/Artist/Track nodes,
-PERFORMED_BY, FOLLOWS, LISTENED_TO (historical), and SIMILAR_TO edges.
-
-After this runs, LISTENED_TO is kept live by the real-time write in
-backend/routes/tracks.py (POST /play), so the For You and Graph pages
-always reflect the user's current listening history.
-
-Called from backend/app.py:
-    from backend.startup_sync import start_background_sync
-    start_background_sync(app)
-"""
+"""Background Neo4j seed — runs once at startup in a daemon thread."""
 
 from __future__ import annotations
 
@@ -185,7 +172,6 @@ def _seed_similar_to(session):
 # ── entry point ────────────────────────────────────────────────────────────────
 
 def _run_sync(driver):
-    """Full sync — runs once in a daemon thread at startup."""
     log.info("[sync] Background Neo4j sync starting…")
     pg_conn = None
     try:
@@ -212,8 +198,6 @@ def _run_sync(driver):
 
 
 def start_background_sync(app):
-    """Call this once from create_app() after init_graph().
-    Spawns a daemon thread so Flask can start serving immediately."""
     from backend.graph import get_driver
 
     driver = get_driver()

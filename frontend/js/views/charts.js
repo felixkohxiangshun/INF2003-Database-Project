@@ -57,9 +57,6 @@ function buildTopByGenrePanel({ genres }) {
   const section = el("div", { class: "panel" });
   section.append(
     el("h2", {}, "Top 5 Tracks Per Genre — This Month"),
-    el("p", { class: "panel__sub" },
-      el("code", {}, "ROW_NUMBER() OVER (PARTITION BY genre_id ORDER BY plays DESC)"),
-      " — nested_queries.sql #1"),
   );
 
   const genreNames = Object.keys(genres || {});

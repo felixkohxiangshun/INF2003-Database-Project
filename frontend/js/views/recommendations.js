@@ -21,8 +21,6 @@ async function renderRecommend() {
 
   // ── Track recommendations ─────────────────────────────────────────────
   const trackSection = el("div", { class: "rec-section" });
-  trackSection.append(el("p", { class: "rec-section__label" }, "Tracks · genre affinity"));
-
   if (!recommendations.length) {
     trackSection.append(el("div", { class: "empty" },
       el("strong", {}, "Nothing yet"),

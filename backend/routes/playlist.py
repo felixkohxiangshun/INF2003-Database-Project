@@ -1,9 +1,4 @@
-"""Playlist Routes
-- Handles creation, retrieval, updates and deletion of playlists.
-- Handles adding and remove tracks from playlist.
-- Public playlist are visible to all users; private only owner-only.
-- All write operations need a valid session via auth_required middleware.
-"""
+"""Playlist routes — CRUD for playlists and their tracks."""
 
 from __future__ import annotations
 
@@ -11,7 +6,7 @@ import logging
 from flask import Blueprint, g, jsonify, request
 import psycopg2.errors
 
-from backend.db import execute, query, query_one
+from backend.db import execute, get_conn, query, query_one
 from backend.middleware.auth_required import auth_required
 from backend.utils import serialize as _serialize
 
@@ -19,9 +14,7 @@ log = logging.getLogger(__name__)
 bp  = Blueprint("playlists", __name__)
 
 
-"""Checks if a playlist exists and belongs to the given user."""
 def _owned_or_404(playlist_id: int, user_id: int):
-
     return query_one(
         "SELECT playlist_id, user_id, name, is_public FROM playlists "
         "WHERE playlist_id = %(pid)s AND user_id = %(uid)s",
@@ -29,25 +22,19 @@ def _owned_or_404(playlist_id: int, user_id: int):
     )
 
 
-"""Returns the current session user_id or -1 if not logged in.
-   Used to check access to private playlists for unauthenticated users."""
 def session_user_id() -> int:
-
     from flask import session as flask_session
     return flask_session.get("user_id", -1)
 
 
 # ---------------------------------------------------------------------------
-# ---------------GET /playlists  — public playlists--------------------------
+# GET /playlists
 # ---------------------------------------------------------------------------
-"""Returns a paginated list of all public playlists with owner name and track count."""
 @bp.route("/playlists", methods=["GET"])
 def list_public_playlists():
- 
     try:
         limit  = min(int(request.args.get("limit",  20)), 100)
         offset = max(int(request.args.get("offset",  0)),  0)
-    
     except (ValueError, TypeError):
         return jsonify({"error": "limit and offset must be integers"}), 400
 
@@ -56,8 +43,8 @@ def list_public_playlists():
         SELECT   p.playlist_id,
                  p.name,
                  p.created_at,
-                 u.user_id        AS owner_id,
-                 u.username       AS owner_username,
+                 u.user_id          AS owner_id,
+                 u.username         AS owner_username,
                  COUNT(pt.track_id) AS track_count
         FROM     playlists p
         JOIN     users u  ON u.user_id   = p.user_id
@@ -73,13 +60,11 @@ def list_public_playlists():
 
 
 # ---------------------------------------------------------------------------
-# ---------------GET /playlists/mine-----------------------------------------
+# GET /playlists/mine
 # ---------------------------------------------------------------------------
-"""Returns all playlists owned by the current user, with track count."""
 @bp.route("/playlists/mine", methods=["GET"])
 @auth_required
 def my_playlists():
-
     rows = query(
         """
         SELECT   p.playlist_id,
@@ -100,13 +85,11 @@ def my_playlists():
 
 
 # ---------------------------------------------------------------------------
-# ---------------POST /playlists---------------------------------------------
+# POST /playlists
 # ---------------------------------------------------------------------------
-"""Create a new playlist for the current user. is_public is true by default."""
 @bp.route("/playlists", methods=["POST"])
 @auth_required
 def create_playlist():
-    
     body      = request.get_json(silent=True) or {}
     name      = (body.get("name") or "").strip()
     is_public = body.get("is_public")
@@ -126,13 +109,10 @@ def create_playlist():
 
 
 # ---------------------------------------------------------------------------
-# ---------------GET /playlists/<id>-----------------------------------------
+# GET /playlists/<id>
 # ---------------------------------------------------------------------------
-"""Returns a playlist and its track in position order.
-   Private playlists are only visible to the owner; public ones to all."""
 @bp.route("/playlists/<int:playlist_id>", methods=["GET"])
 def get_playlist(playlist_id: int):
-  
     requesting_user = session_user_id()
 
     rows = query(
@@ -194,13 +174,11 @@ def get_playlist(playlist_id: int):
 
 
 # ---------------------------------------------------------------------------
-# --------------------PUT /playlists/<id>------------------------------------
+# PUT /playlists/<id>
 # ---------------------------------------------------------------------------
-""""Updates a playlist's name or visibility. Only owner is allowed to update."""
 @bp.route("/playlists/<int:playlist_id>", methods=["PUT"])
 @auth_required
 def update_playlist(playlist_id: int):
-
     if not _owned_or_404(playlist_id, g.user_id):
         return jsonify({"error": "Playlist not found or not yours"}), 404
 
@@ -227,13 +205,11 @@ def update_playlist(playlist_id: int):
 
 
 # ---------------------------------------------------------------------------
-# --------------------DELETE /playlists/<id>------------------------------------
+# DELETE /playlists/<id>
 # ---------------------------------------------------------------------------
-"""Deletes a playlist and all its track links. Only owner can delete."""
 @bp.route("/playlists/<int:playlist_id>", methods=["DELETE"])
 @auth_required
 def delete_playlist(playlist_id: int):
-
     if not _owned_or_404(playlist_id, g.user_id):
         return jsonify({"error": "Playlist not found or not yours"}), 404
 
@@ -245,14 +221,11 @@ def delete_playlist(playlist_id: int):
 
 
 # ---------------------------------------------------------------------------
-# -----------------------POST /playlists/<id>/tracks  — add a track----------
+# POST /playlists/<id>/tracks
 # ---------------------------------------------------------------------------
-"""Adds a track to the playlist. It appends to the end if no position is given.
-    If position is given, shift the existing tracks down to make room."""
 @bp.route("/playlists/<int:playlist_id>/tracks", methods=["POST"])
 @auth_required
 def add_track(playlist_id: int):
-
     if not _owned_or_404(playlist_id, g.user_id):
         return jsonify({"error": "Playlist not found or not yours"}), 404
 
@@ -286,7 +259,6 @@ def add_track(playlist_id: int):
 
     try:
         if position is None:
-            # Append to end — trg_prevent_duplicate_playlist_track fires before this INSERT
             rows = execute(
                 """
                 INSERT INTO playlist_tracks (playlist_id, track_id, position)
@@ -315,20 +287,101 @@ def add_track(playlist_id: int):
                 {"pid": playlist_id, "tid": track_id, "pos": position},
             )
     except psycopg2.errors.RaiseException:
-        # trg_prevent_duplicate_playlist_track raised 'duplicate_playlist_track'
         return jsonify({"error": "Track already in playlist"}), 409
 
     return jsonify(rows[0]), 201
 
 
 # ---------------------------------------------------------------------------
-# -----------DELETE /playlists/<id>/tracks/<track_id>-----------------------
+# PUT /playlists/<id>/tracks/<track_id>/position
+# Two-phase ROW_NUMBER() reorder in a single transaction — the +100000 offset
+# avoids unique constraint collisions during the intermediate update.
 # ---------------------------------------------------------------------------
-"""Removes a track from a playlist and compacts remaining position to fill the gap."""
+@bp.route("/playlists/<int:playlist_id>/tracks/<int:track_id>/position", methods=["PUT"])
+@auth_required
+def move_track(playlist_id: int, track_id: int):
+    if not _owned_or_404(playlist_id, g.user_id):
+        return jsonify({"error": "Playlist not found or not yours"}), 404
+
+    body = request.get_json(silent=True) or {}
+    new_position = body.get("position")
+    if new_position is None:
+        return jsonify({"error": "position is required"}), 400
+    try:
+        new_position = int(new_position)
+        if new_position < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "position must be a positive integer"}), 400
+
+    if not query_one(
+        "SELECT 1 FROM playlist_tracks WHERE playlist_id=%(pid)s AND track_id=%(tid)s",
+        {"pid": playlist_id, "tid": track_id},
+    ):
+        return jsonify({"error": "Track not in playlist"}), 404
+
+    params = {"playlist_id": playlist_id, "track_id": track_id, "new_position": new_position}
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            WITH current_rows AS (
+                SELECT playlist_id, track_id, position
+                FROM   playlist_tracks
+                WHERE  playlist_id = %(playlist_id)s
+            ), target AS (
+                SELECT track_id, position AS old_position
+                FROM   current_rows
+                WHERE  track_id = %(track_id)s
+            ), reordered AS (
+                SELECT cr.track_id,
+                       ROW_NUMBER() OVER (
+                           ORDER BY
+                               CASE
+                                   WHEN cr.track_id = %(track_id)s
+                                       THEN %(new_position)s
+                                   WHEN cr.position >= %(new_position)s
+                                    AND cr.position <  (SELECT old_position FROM target)
+                                       THEN cr.position + 1
+                                   WHEN cr.position <= %(new_position)s
+                                    AND cr.position >  (SELECT old_position FROM target)
+                                       THEN cr.position - 1
+                                   ELSE cr.position
+                               END,
+                               cr.position
+                       ) AS new_pos
+                FROM current_rows cr
+            )
+            UPDATE playlist_tracks pt
+            SET    position = r.new_pos + 100000
+            FROM   reordered r
+            WHERE  pt.playlist_id = %(playlist_id)s
+              AND  pt.track_id    = r.track_id
+            """,
+            params,
+        )
+        cur.execute(
+            """
+            UPDATE playlist_tracks
+            SET    position = position - 100000
+            WHERE  playlist_id = %(playlist_id)s
+              AND  position > 100000
+            RETURNING playlist_id, track_id, position
+            """,
+            params,
+        )
+        rows = [dict(r) for r in (cur.fetchall() or [])]
+    conn.commit()
+
+    return jsonify({"tracks": sorted(rows, key=lambda r: r["position"])})
+
+
+# ---------------------------------------------------------------------------
+# DELETE /playlists/<id>/tracks/<track_id>
+# ---------------------------------------------------------------------------
 @bp.route("/playlists/<int:playlist_id>/tracks/<int:track_id>", methods=["DELETE"])
 @auth_required
 def remove_track(playlist_id: int, track_id: int):
-
     if not _owned_or_404(playlist_id, g.user_id):
         return jsonify({"error": "Playlist not found or not yours"}), 404
 

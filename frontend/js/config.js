@@ -139,6 +139,7 @@ const API = {
   deletePlaylist: (id) => API._req("DELETE", `/playlists/${id}`),
   addToPlaylist:  (id, track_id) => API._req("POST", `/playlists/${id}/tracks`, { track_id }),
   removeFromPlaylist: (id, track_id) => API._req("DELETE", `/playlists/${id}/tracks/${track_id}`),
+  moveTrack: (id, track_id, position) => API._req("PUT", `/playlists/${id}/tracks/${track_id}/position`, { position }),
 
   recommend: async () => {
     try { return await API._req("GET", "/recommend"); }
@@ -148,9 +149,9 @@ const API = {
     try { return await API._req("GET", "/recommend/artists"); }
     catch (_) { return { artists: [] }; }
   },
-  artists: async () => {
+  artists: async (limit = 20) => {
     try {
-      const d = await API._req("GET", "/artists");
+      const d = await API._req("GET", `/artists?limit=${limit}`);
       return { artists: Array.isArray(d) ? d : (d.artists ?? []) };
     } catch (_) { return { artists: [] }; }
   },

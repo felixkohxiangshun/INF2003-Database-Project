@@ -1,8 +1,4 @@
-"""Track, Artist and Genre Routes
-
-- Handles searching and browsing tracks, artists, and genres.
-- Handles the following and unfollowing of artists.
-- All routes are read-only except follow/unfollow which require @auth_required."""
+"""Track, artist, and genre routes."""
 from __future__ import annotations
 
 import logging
@@ -16,8 +12,6 @@ log = logging.getLogger(__name__)
 bp  = Blueprint("tracks", __name__)
 
 
-"""Parses and validates limit and offset query parameters.
-   Returns (limit, offset) on success, or (None, None) if invalid."""
 def _parse_pagination(args) -> tuple[int, int] | tuple[None, None]:
    
     try:
@@ -29,9 +23,8 @@ def _parse_pagination(args) -> tuple[int, int] | tuple[None, None]:
 
 
 # ---------------------------------------------------------------------------
-# ----------------------------------GET /tracks------------------------------
+# GET /tracks
 # ---------------------------------------------------------------------------
-"""Searches and lists tracks with optional title, artist, album or genre filters."""
 @bp.route("/tracks", methods=["GET"])
 def list_tracks():
    
@@ -73,9 +66,8 @@ def list_tracks():
 
 
 # ---------------------------------------------------------------------------
-# ----------------------------------GET /tracks/<id>------------------------------
+# GET /tracks/<id>
 # ---------------------------------------------------------------------------
-"""Returns full details for a single track including album, artist and genre."""
 @bp.route("/tracks/<int:track_id>", methods=["GET"])
 def get_track(track_id: int):
     
@@ -117,9 +109,8 @@ def get_track(track_id: int):
 
 
 # ---------------------------------------------------------------------------
-# ----------------------------------GET /artists------------------------------
+# GET /artists
 # ---------------------------------------------------------------------------
-"""Lists all artists with optional name search and pagination."""
 @bp.route("/artists", methods=["GET"])
 def list_artists():
 
@@ -149,12 +140,10 @@ def list_artists():
 
 
 # ---------------------------------------------------------------------------
-# ----------------------------------GET /artists/<id>------------------------------
+# GET /artists/<id>
 # ---------------------------------------------------------------------------
-"""Returns an artist's profile with all their albums and tracks."""
 @bp.route("/artists/<int:artist_id>", methods=["GET"])
 def get_artist(artist_id: int):
-    """Return an artist with their albums and tracks."""
     artist = query_one(
         "SELECT artist_id, name, bio FROM artists WHERE artist_id = %(id)s",
         {"id": artist_id},
@@ -189,7 +178,6 @@ def get_artist(artist_id: int):
 # ---------------------------------------------------------------------------
 # --------------------Follow / Unfollow Artist-------------------------------
 # ---------------------------------------------------------------------------
-"""Returns whether the current user follows the given artist."""
 @bp.route("/artists/<int:artist_id>/follow", methods=["GET"])
 @auth_required
 def follow_status(artist_id: int):
@@ -201,11 +189,9 @@ def follow_status(artist_id: int):
     return jsonify({"following": row is not None})
 
 
-"""Follows an artist - It is Safe to call multiple times."""
 @bp.route("/artists/<int:artist_id>/follow", methods=["POST"])
 @auth_required
 def follow_artist(artist_id: int):
-    """Follow an artist (idempotent)."""
     artist = query_one(
         "SELECT artist_id, name FROM artists WHERE artist_id=%(id)s",
         {"id": artist_id},
@@ -264,11 +250,9 @@ def follow_artist(artist_id: int):
     return jsonify({"following": True, "followed_at": followed_at}), 201
 
 
-"""Unfollows an artist - It is Safe to call multiple times."""
 @bp.route("/artists/<int:artist_id>/follow", methods=["DELETE"])
 @auth_required
 def unfollow_artist(artist_id: int):
-    """Unfollow an artist."""
     execute(
         "DELETE FROM user_follows_artist WHERE user_id=%(uid)s AND artist_id=%(aid)s",
         {"uid": g.user_id, "aid": artist_id},
@@ -295,10 +279,8 @@ def unfollow_artist(artist_id: int):
 
 
 # ---------------------------------------------------------------------------
-# ----------------------------------POST /play-------------------------------
+# POST /play
 # ---------------------------------------------------------------------------
-"""Logs a track play for the current user. Trigger increments tracks.play_count.
-   Returns the updated play_count."""
 @bp.route("/play", methods=["POST"])
 @auth_required
 def log_play():
@@ -377,11 +359,9 @@ def log_play():
 
 
 # ---------------------------------------------------------------------------
-# ----------------------------------GET /genres------------------------------
+# GET /genres
 # ---------------------------------------------------------------------------
-"""Returns all genres ordered alphabetically."""
 @bp.route("/genres", methods=["GET"])
 def list_genres():
-    """Return all genre names, ordered alphabetically."""
     rows = query("SELECT genre_id, name FROM genres ORDER BY name ASC")
     return jsonify(rows)

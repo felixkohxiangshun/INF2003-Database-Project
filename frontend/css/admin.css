@@ -180,6 +180,25 @@
   line-height: 1.6;
 }
 
+/* ── Standalone search inputs (outside .admin-form) ─────── */
+.admin-search {
+  background: var(--ink);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  padding: 9px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.admin-search:focus {
+  border-color: var(--lav);
+  box-shadow: 0 0 0 3px var(--lav-soft);
+}
+.admin-search::placeholder { color: var(--text-faint); }
+
 /* ── States ──────────────────────────────────────────────── */
 .admin-loading {
   font-family: var(--font-mono);

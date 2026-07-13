@@ -1,27 +1,4 @@
-"""Admin CRUD Routes
-
-Provides full Create / Update / Delete access for the catalogue:
-  Artists, Albums, Tracks, Genres.
-
-All routes require an authenticated session (@auth_required).
-In a production system these would be gated to admin-role users;
-for the INF2003 demo any logged-in user can access them.
-
-Endpoints
----------
-GET    /admin/genres               list all genres
-POST   /admin/genres               create genre
-POST   /admin/artists              create artist
-PUT    /admin/artists/<id>         update artist name / bio
-DELETE /admin/artists/<id>         delete artist (+ Neo4j node)
-POST   /admin/albums               create album
-PUT    /admin/albums/<id>          update album title / release_date
-DELETE /admin/albums/<id>          delete album
-POST   /admin/tracks               create track
-PUT    /admin/tracks/<id>          update track metadata
-DELETE /admin/tracks/<id>          delete track (+ Neo4j node)
-GET    /admin/audit-log            recent rows from audit_log
-"""
+"""Admin routes — CRUD for genres, artists, albums, tracks, and audit log."""
 
 from __future__ import annotations
 
@@ -335,7 +312,6 @@ def update_track(track_id: int):
         {"id": track_id},
     )
 
-    # Update title, genre, and play_count in Neo4j
     try:
         from backend.graph import get_driver
         driver = get_driver()
@@ -432,7 +408,6 @@ def _neo4j_delete_track(track_id: int):
 
 
 def _neo4j_sync_track(track_id: int, title: str, album_id: int):
-    """Create Track node and PERFORMED_BY edge in Neo4j for a newly inserted track."""
     try:
         from backend.graph import get_driver
         from backend.db import query_one as db_query_one

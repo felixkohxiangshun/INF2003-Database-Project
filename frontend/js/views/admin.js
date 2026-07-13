@@ -9,7 +9,6 @@ async function renderAdmin() {
 
   wrap.append(
     el("div", { class: "page-head" },
-      el("p",  { class: "eyebrow" }, "database skills demo — full crud"),
       el("h1", {}, "Admin"),
       el("p",  {}, "Create, edit, and delete catalogue entries. Changes sync to Neo4j automatically.")));
 
@@ -36,7 +35,7 @@ async function renderAdmin() {
       $$(".admin-panel").forEach(p => (p.style.display = "none"));
       btn.classList.add("is-active");
       panel.style.display = "";
-      if (!panel.dataset.loaded) {
+      if (!panel.dataset.loaded || label === "Albums") {
         loaders[label](panel);
         panel.dataset.loaded = "1";
       }
@@ -92,16 +91,13 @@ function labelledSelect(labelText, options, currentVal) {
 async function loadTracks(panel) {
   adminLoading(panel);
   try {
-    const [{ tracks }, genres] = await Promise.all([
-      API.tracks({ limit: 100 }),
-      API._req("GET", "/admin/genres").catch(() => []),
-    ]);
+    const genres = await API._req("GET", "/admin/genres").catch(() => []);
     panel.innerHTML = "";
 
     // ── Create form ──
-    const titleWrap  = labelledInput("Title",        { type: "text",   placeholder: "Track title",   required: "" });
-    const durWrap    = labelledInput("Duration (s)", { type: "number", placeholder: "e.g. 214",      min: "1", required: "" });
-    const albumWrap  = labelledInput("Album ID",     { type: "number", placeholder: "Album ID",      required: "" });
+    const titleWrap  = labelledInput("Title",        { type: "text",   placeholder: "Track title", required: "" });
+    const durWrap    = labelledInput("Duration (s)", { type: "number", placeholder: "e.g. 214",    min: "1", required: "" });
+    const albumWrap  = labelledInput("Album ID",     { type: "number", placeholder: "Album ID",    required: "" });
     const genreOpts  = [{ value: "", text: "— No genre —" }, ...genres.map(g => ({ value: g.genre_id, text: g.name }))];
     const genreWrap  = labelledSelect("Genre", genreOpts, "");
     const titleInput = titleWrap.querySelector("input");
@@ -109,54 +105,86 @@ async function loadTracks(panel) {
     const albumInput = albumWrap.querySelector("input");
     const genreSelect= genreWrap.querySelector("select");
 
+    const tbody = el("tbody", {});
+    const countEl = el("p", { style: "font-size:.82rem;color:var(--text-faint);margin:0 0 8px" }, "");
+
+    function addTrackRow(t, prepend = false) {
+      const row = el("tr", {},
+        el("td", {}, String(t.track_id)),
+        el("td", { style: "color:var(--text)" }, t.track_title || t.title || ""),
+        el("td", {}, t.artist_name || t.artist || "—"),
+        el("td", {}, t.genre_name  || t.genre  || "—"),
+        el("td", { style: "font-family:var(--font-mono);font-size:.8rem" }, fmtDuration(t.duration_sec)),
+        el("td", {},
+          el("button", { class: "btn btn--ghost btn--sm",  onClick: () => openEditTrack(t, genres, () => row.remove()) }, "Edit"),
+          el("button", { class: "btn btn--danger btn--sm", onClick: async () => {
+            if (!confirm(`Delete track #${t.track_id}? This cannot be undone.`)) return;
+            try {
+              await API._req("DELETE", `/admin/tracks/${t.track_id}`);
+              toast("Track deleted");
+              row.remove();
+            } catch (err) { toast(err.message, "error"); }
+          }}, "Delete")));
+      if (prepend) tbody.prepend(row); else tbody.append(row);
+    }
+
     const createForm = el("form", { class: "admin-form" },
       titleWrap, durWrap, albumWrap, genreWrap,
       el("button", { type: "submit", class: "btn btn--primary btn--sm", style: "align-self:flex-end" }, "+ Add track"));
-
     createForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
-        await API._req("POST", "/admin/tracks", {
+        const track = await API._req("POST", "/admin/tracks", {
           title: titleInput.value.trim(),
           duration_sec: Number(durInput.value),
           album_id: Number(albumInput.value),
           genre_id: genreSelect.value ? Number(genreSelect.value) : null,
         });
         toast("Track created", "success");
-        panel.dataset.loaded = "";
-        loadTracks(panel);
+        titleInput.value = "";
+        durInput.value   = "";
+        albumInput.value = "";
+        genreSelect.value = "";
+        addTrackRow(track, true);
       } catch (err) { toast(err.message, "error"); }
     });
 
-    panel.append(
-      el("div", { class: "admin-section" },
-        el("h3", {}, "Add Track"),
-        createForm));
+    panel.append(el("div", { class: "admin-section" }, el("h3", {}, "Add Track"), createForm));
 
-    // ── Table ──
-    const tbody = el("tbody", {});
-    tracks.forEach((t) => {
-      tbody.append(el("tr", {},
-        el("td", {}, String(t.track_id)),
-        el("td", { style: "color:var(--text)" }, t.title),
-        el("td", {}, t.artist),
-        el("td", {}, t.genre || "—"),
-        el("td", { style: "font-family:var(--font-mono);font-size:.8rem" }, fmtDuration(t.duration_sec)),
-        el("td", {},
-          el("button", { class: "btn btn--ghost btn--sm",   onClick: () => openEditTrack(t, genres, panel) }, "Edit"),
-          el("button", { class: "btn btn--danger btn--sm",  onClick: () => deleteTrack(t.track_id, panel)  }, "Delete"))));
+    // ── Search + table ──
+    let searchTimer = null;
+    const searchInput = el("input", {
+      type: "text", placeholder: "Search tracks by title, artist or album…",
+      class: "admin-search", style: "margin-bottom:12px",
     });
 
-    const table = el("table", { class: "admin-table" },
-      el("thead", {}, el("tr", {},
-        el("th", {}, "ID"), el("th", {}, "Title"), el("th", {}, "Artist"),
-        el("th", {}, "Genre"), el("th", {}, "Duration"), el("th", {}, "Actions"))),
-      tbody);
+    async function fetchTracks(q) {
+      tbody.innerHTML = "<tr><td colspan='6' style='color:var(--text-faint);font-size:.85rem'>Loading…</td></tr>";
+      const url = q ? `/tracks?q=${encodeURIComponent(q)}&limit=50` : "/tracks?limit=50";
+      const { tracks: list } = await API.tracks(q ? { q, limit: 50 } : { limit: 50 });
+      tbody.innerHTML = "";
+      list.forEach(t => addTrackRow(t));
+      countEl.textContent = `Tracks${q ? ` matching "${q}"` : " (top 50 by plays)"}: ${list.length}`;
+    }
 
-    panel.append(
-      el("div", { class: "admin-section" },
-        el("h3", {}, `Tracks (${tracks.length})`),
-        table));
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => fetchTracks(searchInput.value.trim()), 250);
+    });
+
+    const tableSection = el("div", { class: "admin-section" });
+    tableSection.append(
+      el("h3", {}, "Tracks"),
+      searchInput,
+      countEl,
+      el("table", { class: "admin-table" },
+        el("thead", {}, el("tr", {},
+          el("th", {}, "ID"), el("th", {}, "Title"), el("th", {}, "Artist"),
+          el("th", {}, "Genre"), el("th", {}, "Duration"), el("th", {}, "Actions"))),
+        tbody));
+    panel.append(tableSection);
+
+    await fetchTracks("");
 
   } catch (err) { adminError(panel, err.message); }
 }
@@ -178,7 +206,7 @@ function buildTrackFormFields(genres, defaults = {}) {
   };
 }
 
-async function openEditTrack(track, genres, panel) {
+async function openEditTrack(track, genres, onSave) {
   const overlay = el("div", { class: "admin-modal-overlay" });
   const { fields, getValues } = buildTrackFormFields(genres, track);
 
@@ -189,8 +217,7 @@ async function openEditTrack(track, genres, panel) {
       await API._req("PUT", `/admin/tracks/${track.track_id}`, getValues());
       toast("Track updated", "success");
       overlay.remove();
-      panel.dataset.loaded = "";
-      loadTracks(panel);
+      if (onSave) onSave();
     } catch (err) { toast(err.message, "error"); }
   });
 
@@ -204,16 +231,6 @@ async function openEditTrack(track, genres, panel) {
   document.body.append(overlay);
 }
 
-async function deleteTrack(track_id, panel) {
-  if (!confirm(`Delete track #${track_id}? This cannot be undone.`)) return;
-  try {
-    await API._req("DELETE", `/admin/tracks/${track_id}`);
-    toast("Track deleted");
-    panel.dataset.loaded = "";
-    loadTracks(panel);
-  } catch (err) { toast(err.message, "error"); }
-}
-
 // ---------------------------------------------------------------------------
 // Artists panel
 // ---------------------------------------------------------------------------
@@ -221,7 +238,6 @@ async function deleteTrack(track_id, panel) {
 async function loadArtists(panel) {
   adminLoading(panel);
   try {
-    const { artists } = await API.artists();
     panel.innerHTML = "";
 
     const nameWrap = labelledInput("Name", { type: "text", placeholder: "Artist name", required: "" });
@@ -231,25 +247,11 @@ async function loadArtists(panel) {
     const nameInput = nameWrap.querySelector("input");
     const bioInput  = bioDiv.querySelector("textarea");
 
-    const createForm = el("form", { class: "admin-form" },
-      nameWrap, bioDiv,
-      el("button", { type: "submit", class: "btn btn--primary btn--sm", style: "align-self:flex-end" }, "+ Add artist"));
-    createForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await API._req("POST", "/admin/artists", { name: nameInput.value.trim(), bio: bioInput.value.trim() });
-        toast("Artist created", "success");
-        panel.dataset.loaded = "";
-        loadArtists(panel);
-      } catch (err) { toast(err.message, "error"); }
-    });
-
-    panel.append(
-      el("div", { class: "admin-section" }, el("h3", {}, "Add Artist"), createForm));
-
     const tbody = el("tbody", {});
-    artists.forEach((a) => {
-      tbody.append(el("tr", {},
+    const tableSection = el("div", { class: "admin-section" });
+
+    function addArtistRow(a, prepend = false) {
+      const row = el("tr", {},
         el("td", {}, String(a.artist_id)),
         el("td", { style: "color:var(--text)" }, a.name),
         el("td", {},
@@ -258,19 +260,65 @@ async function loadArtists(panel) {
             try {
               await API._req("DELETE", `/admin/artists/${a.artist_id}`);
               toast("Artist deleted");
-              panel.dataset.loaded = "";
-              loadArtists(panel);
+              row.remove();
             } catch (err) { toast(err.message, "error"); }
-          }}, "Delete"))));
+          }}, "Delete")));
+      if (prepend) tbody.prepend(row); else tbody.append(row);
+    }
+
+    const createForm = el("form", { class: "admin-form" },
+      nameWrap, bioDiv,
+      el("button", { type: "submit", class: "btn btn--primary btn--sm", style: "align-self:flex-end" }, "+ Add artist"));
+    createForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = nameInput.value.trim();
+      if (!name) return;
+      try {
+        const artist = await API._req("POST", "/admin/artists", { name, bio: bioInput.value.trim() });
+        toast("Artist created", "success");
+        nameInput.value = "";
+        bioInput.value  = "";
+        addArtistRow(artist, true);
+      } catch (err) { toast(err.message, "error"); }
     });
 
     panel.append(
-      el("div", { class: "admin-section" },
-        el("h3", {}, `Artists (${artists.length})`),
-        el("table", { class: "admin-table" },
-          el("thead", {}, el("tr", {},
-            el("th", {}, "ID"), el("th", {}, "Name"), el("th", {}, "Actions"))),
-          tbody)));
+      el("div", { class: "admin-section" }, el("h3", {}, "Add Artist"), createForm));
+
+    // Search box for artist list
+    let searchTimer = null;
+    const searchInput = el("input", {
+      type: "text", placeholder: "Search artists…",
+      class: "admin-search", style: "margin-bottom:12px",
+    });
+
+    async function fetchArtists(q) {
+      tbody.innerHTML = "<tr><td colspan='3' style='color:var(--text-faint);font-size:.85rem'>Loading…</td></tr>";
+      const url = q ? `/artists?q=${encodeURIComponent(q)}&limit=50` : "/artists?limit=50";
+      const results = await API._req("GET", url);
+      const list = Array.isArray(results) ? results : (results.artists ?? []);
+      tbody.innerHTML = "";
+      list.forEach(a => addArtistRow(a));
+      countEl.textContent = `Artists${q ? ` matching "${q}"` : " (top 50 by plays)"}: ${list.length}`;
+    }
+
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => fetchArtists(searchInput.value.trim()), 250);
+    });
+
+    const countEl = el("p", { style: "font-size:.82rem;color:var(--text-faint);margin:0 0 8px" }, "");
+    tableSection.append(
+      el("h3", {}, "Artists"),
+      searchInput,
+      countEl,
+      el("table", { class: "admin-table" },
+        el("thead", {}, el("tr", {},
+          el("th", {}, "ID"), el("th", {}, "Name"), el("th", {}, "Actions"))),
+        tbody));
+    panel.append(tableSection);
+
+    await fetchArtists("");
 
   } catch (err) { adminError(panel, err.message); }
 }
@@ -282,25 +330,68 @@ async function loadArtists(panel) {
 async function loadAlbums(panel) {
   adminLoading(panel);
   try {
-    const { artists } = await API.artists();
     panel.innerHTML = "";
 
-    const artistOpts  = [{ value: "", text: "— Select artist —" }, ...artists.map(a => ({ value: a.artist_id, text: a.name }))];
-    const artistWrap  = labelledSelect("Artist", artistOpts, "");
     const titleWrap   = labelledInput("Title",        { type: "text", placeholder: "Album title", required: "" });
     const dateWrap    = labelledInput("Release Date", { type: "date" });
-    const artistSelect = artistWrap.querySelector("select");
-    const titleInput   = titleWrap.querySelector("input");
-    const dateInput    = dateWrap.querySelector("input");
+    const titleInput  = titleWrap.querySelector("input");
+    const dateInput   = dateWrap.querySelector("input");
+
+    // Artist search widget — queries server on each keystroke
+    let selectedArtistId = null;
+    let searchTimer = null;
+    const artistWrap = el("div", { class: "field", style: "position:relative" });
+    const artistLabel = el("label", { class: "field__label" }, "Artist");
+    const artistSearch = el("input", {
+      type: "text", placeholder: "Type to search artist…", autocomplete: "off",
+      class: "admin-search",
+    });
+    const artistDropdown = el("ul", {
+      style: "position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r);max-height:180px;overflow-y:auto;margin:2px 0 0;padding:0;list-style:none;display:none",
+    });
+    artistWrap.append(artistLabel, artistSearch, artistDropdown);
+
+    async function fetchAndRenderDropdown(q) {
+      artistDropdown.innerHTML = "";
+      if (!q) { artistDropdown.style.display = "none"; return; }
+      try {
+        const results = await API._req("GET", `/artists?q=${encodeURIComponent(q)}&limit=30`);
+        const matches = Array.isArray(results) ? results : (results.artists ?? []);
+        if (!matches.length) { artistDropdown.style.display = "none"; return; }
+        matches.forEach(a => {
+          const item = el("li", {
+            style: "padding:7px 12px;cursor:pointer;font-size:13px;color:var(--fg)",
+          }, a.name);
+          item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            selectedArtistId = a.artist_id;
+            artistSearch.value = a.name;
+            artistDropdown.style.display = "none";
+          });
+          item.addEventListener("mouseenter", () => item.style.background = "var(--line)");
+          item.addEventListener("mouseleave", () => item.style.background = "");
+          artistDropdown.append(item);
+        });
+        artistDropdown.style.display = "block";
+      } catch (_) { artistDropdown.style.display = "none"; }
+    }
+
+    artistSearch.addEventListener("input", () => {
+      selectedArtistId = null;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => fetchAndRenderDropdown(artistSearch.value.trim()), 200);
+    });
+    artistSearch.addEventListener("blur", () => setTimeout(() => { artistDropdown.style.display = "none"; }, 150));
 
     const createForm = el("form", { class: "admin-form" },
       artistWrap, titleWrap, dateWrap,
       el("button", { type: "submit", class: "btn btn--primary btn--sm", style: "align-self:flex-end" }, "+ Add album"));
     createForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!selectedArtistId) { toast("Please select an artist from the list", "error"); return; }
       try {
         await API._req("POST", "/admin/albums", {
-          artist_id: Number(artistSelect.value),
+          artist_id: Number(selectedArtistId),
           title: titleInput.value.trim(),
           release_date: dateInput.value || null,
         });
@@ -313,30 +404,53 @@ async function loadAlbums(panel) {
     panel.append(
       el("div", { class: "admin-section" }, el("h3", {}, "Add Album"), createForm));
 
-    // Albums grouped by artist
-    const listSection = el("div", { class: "admin-section" }, el("h3", {}, "Existing Albums"));
-    for (const a of artists.slice(0, 20)) {
-      const data = await API.artist(a.artist_id);
-      if (!data?.albums?.length) continue;
+    // Albums lookup — search an artist to see their albums
+    const albumResults = el("div", {});
+    let lookupTimer = null;
+    const lookupInput = el("input", {
+      type: "text", placeholder: "Search artist to view their albums…",
+      class: "admin-search", style: "margin-bottom:12px",
+    });
+    lookupInput.addEventListener("input", () => {
+      clearTimeout(lookupTimer);
+      const q = lookupInput.value.trim();
+      if (!q) { albumResults.innerHTML = ""; return; }
+      lookupTimer = setTimeout(async () => {
+        albumResults.innerHTML = "<p style='color:var(--text-faint);font-size:.85rem'>Searching…</p>";
+        try {
+          const results = await API._req("GET", `/artists?q=${encodeURIComponent(q)}&limit=10`);
+          const matches = Array.isArray(results) ? results : (results.artists ?? []);
+          albumResults.innerHTML = "";
+          for (const a of matches) {
+            const data = await API.artist(a.artist_id);
+            if (!data?.albums?.length) continue;
+            const block = el("div", { class: "admin-artist-block" }, el("h4", {}, a.name));
+            data.albums.forEach((al) => {
+              block.append(el("div", { class: "admin-album-row" },
+                el("span", {}, `${al.album_id} — ${al.album_title}`),
+                el("button", { class: "btn btn--danger btn--sm", onClick: async () => {
+                  if (!confirm(`Delete "${al.album_title}"? All its tracks will also be deleted.`)) return;
+                  try {
+                    await API._req("DELETE", `/admin/albums/${al.album_id}`);
+                    toast("Album deleted");
+                    lookupInput.dispatchEvent(new Event("input"));
+                  } catch (err) { toast(err.message, "error"); }
+                }}, "Delete")));
+            });
+            albumResults.append(block);
+          }
+          if (!albumResults.children.length) {
+            albumResults.innerHTML = "<p style='color:var(--text-faint);font-size:.85rem'>No albums found for that artist.</p>";
+          }
+        } catch (_) { albumResults.innerHTML = ""; }
+      }, 300);
+    });
 
-      const block = el("div", { class: "admin-artist-block" },
-        el("h4", {}, a.name));
-      data.albums.forEach((al) => {
-        block.append(el("div", { class: "admin-album-row" },
-          el("span", {}, `${al.album_id} — ${al.album_title}`),
-          el("button", { class: "btn btn--danger btn--sm", onClick: async () => {
-            if (!confirm(`Delete "${al.album_title}"? All its tracks will also be deleted.`)) return;
-            try {
-              await API._req("DELETE", `/admin/albums/${al.album_id}`);
-              toast("Album deleted");
-              panel.dataset.loaded = "";
-              loadAlbums(panel);
-            } catch (err) { toast(err.message, "error"); }
-          }}, "Delete")));
-      });
-      listSection.append(block);
-    }
-    panel.append(listSection);
+    panel.append(
+      el("div", { class: "admin-section" },
+        el("h3", {}, "Existing Albums"),
+        lookupInput,
+        albumResults));
 
   } catch (err) { adminError(panel, err.message); }
 }
@@ -354,32 +468,58 @@ async function loadGenres(panel) {
     const nameWrap  = labelledInput("Name", { type: "text", placeholder: "e.g. jazz", required: "" });
     const nameInput = nameWrap.querySelector("input");
 
+    const list = el("ul", { class: "admin-genre-list" });
+    const countEl = el("p", { style: "font-size:.82rem;color:var(--text-faint);margin:0 0 8px" }, `${genres.length} genres`);
+
+    function addGenreRow(g, prepend = false) {
+      const item = el("li", {},
+        el("span", {}, String(g.genre_id)),
+        g.name);
+      if (prepend) list.prepend(item); else list.append(item);
+    }
+    genres.forEach(g => addGenreRow(g));
+
     const createForm = el("form", { class: "admin-form" },
       nameWrap,
       el("button", { type: "submit", class: "btn btn--primary btn--sm", style: "align-self:flex-end" }, "+ Add genre"));
     createForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
-        await API._req("POST", "/admin/genres", { name: nameInput.value.trim() });
+        const genre = await API._req("POST", "/admin/genres", { name: nameInput.value.trim() });
         toast("Genre created", "success");
         nameInput.value = "";
-        panel.dataset.loaded = "";
-        loadGenres(panel);
+        addGenreRow(genre, true);
+        countEl.textContent = `${list.children.length} genres`;
       } catch (err) { toast(err.message, "error"); }
     });
 
-    panel.append(
-      el("div", { class: "admin-section" }, el("h3", {}, "Add Genre"), createForm));
+    panel.append(el("div", { class: "admin-section" }, el("h3", {}, "Add Genre"), createForm));
 
-    const list = el("ul", { class: "admin-genre-list" });
-    genres.forEach((g) => list.append(
-      el("li", {},
-        el("span", {}, String(g.genre_id)),
-        g.name)));
+    // Client-side search (113 genres — no need for server round-trip)
+    let filterTimer = null;
+    const searchInput = el("input", {
+      type: "text", placeholder: "Filter genres…",
+      class: "admin-search", style: "margin-bottom:12px",
+    });
+    searchInput.addEventListener("input", () => {
+      clearTimeout(filterTimer);
+      filterTimer = setTimeout(() => {
+        const q = searchInput.value.trim().toLowerCase();
+        let visible = 0;
+        list.querySelectorAll("li").forEach(item => {
+          const match = !q || item.textContent.toLowerCase().includes(q);
+          item.style.display = match ? "" : "none";
+          if (match) visible++;
+        });
+        countEl.textContent = q ? `${visible} of ${list.children.length} genres` : `${list.children.length} genres`;
+      }, 150);
+    });
 
     panel.append(
       el("div", { class: "admin-section" },
-        el("h3", {}, `Genres (${genres.length})`),
+        el("h3", {}, "Genres"),
+        searchInput,
+        countEl,
         list));
 
   } catch (err) { adminError(panel, err.message); }
@@ -410,14 +550,24 @@ async function loadAuditLog(panel) {
 
     const tbody = el("tbody", {});
     rows.forEach((r) => {
+      const isCreate = r.field_name === "created";
+      const isDelete = r.field_name === "deleted";
       tbody.append(el("tr", {},
         el("td", {}, String(r.log_id)),
+        el("td", {}, el("code", {}, r.table_name || "users")),
         el("td", {}, String(r.record_id)),
-        el("td", { style: "color:var(--text)" }, r.changed_by || "—"),
-        el("td", {}, el("code", {}, r.field_name)),
-        el("td", {}, r.old_value || "—"),
+        el("td", { style: "color:var(--text-dim)" }, r.changed_by || "—"),
+        el("td", {},
+          el("span", {
+            style: isCreate
+              ? "color:var(--mint);font-family:var(--font-mono);font-size:.8rem"
+              : isDelete
+                ? "color:var(--coral);font-family:var(--font-mono);font-size:.8rem"
+                : "font-family:var(--font-mono);font-size:.8rem",
+          }, r.field_name)),
+        el("td", { style: "color:var(--text-faint)" }, r.old_value || "—"),
         el("td", { style: "color:var(--text)" }, r.new_value || "—"),
-        el("td", { style: "font-family:var(--font-mono);font-size:.78rem" },
+        el("td", { style: "font-family:var(--font-mono);font-size:.78rem;color:var(--text-faint)" },
           r.changed_at ? r.changed_at.slice(0, 19).replace("T", " ") : "—")));
     });
 
@@ -426,9 +576,9 @@ async function loadAuditLog(panel) {
         el("h3", {}, `Audit Log (${rows.length})`),
         el("table", { class: "admin-table" },
           el("thead", {}, el("tr", {},
-            el("th", {}, "Log"), el("th", {}, "User"), el("th", {}, "Changed By"),
-            el("th", {}, "Field"), el("th", {}, "Old"), el("th", {}, "New"),
-            el("th", {}, "When"))),
+            el("th", {}, "Log"), el("th", {}, "Table"), el("th", {}, "Record"),
+            el("th", {}, "Changed By"), el("th", {}, "Field"),
+            el("th", {}, "Old"), el("th", {}, "New"), el("th", {}, "When"))),
           tbody)));
 
   } catch (err) { adminError(panel, err.message); }
