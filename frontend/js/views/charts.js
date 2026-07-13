@@ -1,13 +1,4 @@
-/* ============================================================
-   Resonate — Charts / Stats view
-
-   Three sections:
-     1. Top tracks overall (GET /stats)
-     2. Top genres overall (GET /stats)
-     3. Top 5 per genre this month — CTE + ROW_NUMBER() window
-        function (GET /insights/top-by-genre, nested_queries.sql #1)
-   ============================================================ */
-
+// Third section (top 5 per genre) comes from a CTE + ROW_NUMBER() window query — see nested_queries.sql #1
 async function renderStats() {
   const [statsData, topByGenreData] = await Promise.all([
     API.stats(),
@@ -21,7 +12,6 @@ async function renderStats() {
     el("h1", {}, "Charts"),
     el("p", {}, "Most-played tracks and genres across all users."));
 
-  // ── Top tracks ─────────────────────────────────────────────
   const maxTrack = Math.max(...top_tracks.map((t) => t.play_count), 1);
   const trackPanel = el("div", { class: "panel" }, el("h2", {}, "Top Tracks"));
   top_tracks.forEach((t, i) => {
@@ -33,7 +23,6 @@ async function renderStats() {
       el("div", { class: "bar-row__val" }, fmtCount(t.play_count))));
   });
 
-  // ── Top genres ─────────────────────────────────────────────
   const maxGenre = Math.max(...top_genres.map((g) => g.play_count), 1);
   const genrePanel = el("div", { class: "panel" }, el("h2", {}, "Top Genres"));
   top_genres.forEach((g) => {
@@ -44,7 +33,6 @@ async function renderStats() {
       el("div", { class: "bar-row__val" }, fmtCount(g.play_count))));
   });
 
-  // ── Top 5 per genre this month — window function ────────────
   const genreBreakdown = buildTopByGenrePanel(topByGenreData);
 
   return el("div", {},

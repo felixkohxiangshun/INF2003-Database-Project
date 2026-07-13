@@ -67,7 +67,7 @@ def create_app() -> Flask:
     from backend.routes.insights        import bp as insights_bp
 
     app.register_blueprint(auth_bp)
-    app.register_blueprint(insights_bp)   # register before tracks so /artists/top-performers matches first
+    app.register_blueprint(insights_bp)   # must register before tracks_bp so /artists/top-performers matches first
     app.register_blueprint(tracks_bp)
     app.register_blueprint(playlists_bp)
     app.register_blueprint(history_bp)

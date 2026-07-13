@@ -1,7 +1,3 @@
-/* ============================================================
-   Resonate — Auth, session, genre chips, boot
-   ============================================================ */
-
 function showAuth() {
   $("#auth-view").hidden = false;
   $("#app-shell").hidden = true;
@@ -19,7 +15,6 @@ function showApp() {
 async function enter(user) {
   State.user = user;
   showApp();
-  // load genre chips once
   try {
     const { genres } = await API.genres();
     State.genres = genres;
@@ -45,7 +40,6 @@ function renderGenreChips() {
 }
 
 function setupAuthForms() {
-  // tab switching
   $$(".auth__tab").forEach((tab) => tab.addEventListener("click", () => {
     $$(".auth__tab").forEach((t) => t.classList.remove("is-active"));
     tab.classList.add("is-active");
@@ -83,7 +77,6 @@ function setupAuthForms() {
   });
 }
 
-// search input (debounced)
 let searchTimer;
 function setupSearch() {
   $("#search-input").addEventListener("input", (e) => {
@@ -101,7 +94,6 @@ async function boot() {
   setupPlayer();
   window.addEventListener("hashchange", router);
 
-  // Check for an existing session (mock returns null until login)
   try {
     const { user } = await API.me();
     if (user) return enter(user);

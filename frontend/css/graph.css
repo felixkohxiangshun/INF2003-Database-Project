@@ -1,7 +1,3 @@
-/* ============================================================
-   Graph view — D3 force-directed listening network
-   ============================================================ */
-
 .graph-container {
   position: relative;
   background: var(--ink-2);
@@ -17,7 +13,6 @@
   user-select: none;
 }
 
-/* Legend ---------------------------------------------------- */
 .graph-legend {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -73,7 +68,6 @@
   border-radius: 0;
 }
 
-/* Tooltip --------------------------------------------------- */
 .graph-tooltip {
   position: absolute;
   display: none;

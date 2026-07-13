@@ -1,11 +1,8 @@
-"""Artists Graph Routes
+"""Artist graph routes.
 
-- GET /recommend/artists   — artist recommendations via Neo4j SIMILAR_TO traversal
-- GET /artists/path        — shortest connection path between two artists via Neo4j
-
-Both routes demonstrate graph queries that are impractical in SQL:
-  - SIMILAR_TO traversal requires multi-hop joins SQL can't express cleanly
-  - shortestPath() has no SQL equivalent without recursive CTEs of unknown depth
+These use Neo4j instead of SQL because SIMILAR_TO traversal needs multi-hop
+joins SQL can't express cleanly, and shortestPath() has no SQL equivalent
+without recursive CTEs of unknown depth.
 """
 
 from __future__ import annotations
@@ -22,14 +19,10 @@ log = logging.getLogger(__name__)
 bp  = Blueprint("artists_graph", __name__)
 
 
-# ---------------------------------------------------------------------------
-# GET /recommend/artists
-# ---------------------------------------------------------------------------
 @bp.route("/recommend/artists", methods=["GET"])
 @auth_required
 def recommend_artists():
-    """Return artists the user hasn't listened to, discovered via SIMILAR_TO edges
-    from artists they already listen to. Score = total plays of the bridging artist."""
+    """Score = total plays of the bridging artist the user already listens to."""
     user_id = g.user_id
 
     recs = neo4j_query(
@@ -54,7 +47,7 @@ def recommend_artists():
     if not recs:
         return jsonify({"artists": []})
 
-    # Enrich with PostgreSQL: bio + track count
+    # enrich with bio + track count from PostgreSQL
     artist_ids = [r["artist_id"] for r in recs]
     scores     = {r["artist_id"]: r["score"] for r in recs}
 
@@ -84,16 +77,10 @@ def recommend_artists():
     return jsonify({"artists": result})
 
 
-# ---------------------------------------------------------------------------
-# GET /artists/path?from_id=X&to_id=Y
-# ---------------------------------------------------------------------------
 @bp.route("/artists/path", methods=["GET"])
 @auth_required
 def artist_path():
-    """Find the shortest SIMILAR_TO path between two artists in the graph.
-    Returns the chain of artist nodes and number of hops.
-    Uses Neo4j shortestPath() — equivalent SQL would require recursive CTEs
-    of unknown depth, making it impractical for real-time queries."""
+    """Shortest SIMILAR_TO path between two artists via Neo4j shortestPath()."""
     from_id = request.args.get("from_id", type=int)
     to_id   = request.args.get("to_id",   type=int)
 
@@ -122,15 +109,10 @@ def artist_path():
     return jsonify({"path": row["path_nodes"], "hops": row["hops"]})
 
 
-# ---------------------------------------------------------------------------
-# GET /graph/user
-# ---------------------------------------------------------------------------
 @bp.route("/graph/user", methods=["GET"])
 @auth_required
 def user_graph():
-    """Return the logged-in user's listening subgraph as nodes + links for D3.
-    Includes: User → LISTENED_TO → Track → PERFORMED_BY → Artist,
-    plus SIMILAR_TO edges between artists already in the graph."""
+    """Logged-in user's listening subgraph as nodes + links for D3."""
     user_id = g.user_id
 
     listened = neo4j_query(
@@ -161,7 +143,6 @@ def user_graph():
     links = []
     seen_links = set()
 
-    # User node
     nodes[f"u{user_id}"] = {
         "id": f"u{user_id}", "label": username,
         "type": "User", "meta": f"user_id: {user_id}",

@@ -1,8 +1,4 @@
-/* ============================================================
-   Resonate — Toasts + Modals
-   ============================================================ */
-
-/* ---------- Toasts ---------- */
+/* Toasts */
 .toast-stack { position: fixed; bottom: 96px; right: 24px; display: flex; flex-direction: column; gap: 10px; z-index: 50; }
 .toast {
   background: var(--ink-3);
@@ -19,7 +15,7 @@
 .toast--err { border-left-color: var(--coral); }
 @keyframes slidein { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-/* ---------- Modal ---------- */
+/* Modal */
 .modal-backdrop {
   position: fixed; inset: 0;
   background: rgba(8, 5, 12, 0.7);

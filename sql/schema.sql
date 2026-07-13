@@ -1,15 +1,10 @@
--- =============================================================
 -- INF2003 Music Streaming App — PostgreSQL Schema
 -- Author : M1 (Database Architect)
 -- DB     : music_streaming
--- =============================================================
 
 -- Run order matters — tables with no FK dependencies come first.
 
--- -------------------------------------------------------------
 -- 1. USERS
---    Core user account table.
--- -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
     user_id       SERIAL PRIMARY KEY,
     email         VARCHAR(512)   NOT NULL UNIQUE,
@@ -18,29 +13,21 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- -------------------------------------------------------------
 -- 2. GENRES
---    Normalised genre lookup — avoids free-text genre strings
---    on each track.
--- -------------------------------------------------------------
+-- Normalised lookup table — avoids free-text genre strings on each track.
 CREATE TABLE IF NOT EXISTS genres (
     genre_id  SERIAL PRIMARY KEY,
     name      VARCHAR(100) NOT NULL UNIQUE
 );
 
--- -------------------------------------------------------------
 -- 3. ARTISTS
--- -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS artists (
     artist_id  SERIAL PRIMARY KEY,
     name       VARCHAR(512) NOT NULL,
     bio        TEXT
 );
 
--- -------------------------------------------------------------
 -- 4. ALBUMS
---    Relationship: ARTISTS (1) — (many) ALBUMS
--- -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS albums (
     album_id     SERIAL PRIMARY KEY,
     artist_id    INT          NOT NULL REFERENCES artists(artist_id) ON DELETE CASCADE,
@@ -48,14 +35,9 @@ CREATE TABLE IF NOT EXISTS albums (
     release_date DATE
 );
 
--- -------------------------------------------------------------
 -- 5. TRACKS
---    Relationship: ALBUMS (1) — (many) TRACKS
---                  GENRES (1) — (many) TRACKS
---
---    play_count is a denormalised counter updated by trigger
---    (see triggers.sql) for fast read performance.
--- -------------------------------------------------------------
+-- play_count is a denormalised counter updated by trigger (see triggers.sql)
+-- for fast read performance.
 CREATE TABLE IF NOT EXISTS tracks (
     track_id     SERIAL PRIMARY KEY,
     album_id     INT          NOT NULL REFERENCES albums(album_id)  ON DELETE CASCADE,
@@ -65,10 +47,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     play_count   INT          NOT NULL DEFAULT 0
 );
 
--- -------------------------------------------------------------
 -- 6. PLAYLISTS
---    Relationship: USERS (1) — (many) PLAYLISTS
--- -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS playlists (
     playlist_id  SERIAL PRIMARY KEY,
     user_id      INT          NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -77,11 +56,8 @@ CREATE TABLE IF NOT EXISTS playlists (
     created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- -------------------------------------------------------------
 -- 7. PLAYLIST_TRACKS  [many-to-many junction]
---    Relationship: PLAYLISTS (many) — (many) TRACKS
---    position allows ordered track lists within a playlist.
--- -------------------------------------------------------------
+-- position allows ordered track lists within a playlist.
 CREATE TABLE IF NOT EXISTS playlist_tracks (
     playlist_id  INT NOT NULL REFERENCES playlists(playlist_id) ON DELETE CASCADE,
     track_id     INT NOT NULL REFERENCES tracks(track_id)       ON DELETE CASCADE,
@@ -90,15 +66,9 @@ CREATE TABLE IF NOT EXISTS playlist_tracks (
     UNIQUE (playlist_id, position)   -- no duplicate positions within a playlist
 );
 
--- -------------------------------------------------------------
 -- 8. PLAY_HISTORY
---     Every completed play is logged here.
---     Relationship: USERS (1) — (many) PLAY_HISTORY
---                   TRACKS (1) — (many) PLAY_HISTORY
---
---     INSERT into this table fires the trigger in triggers.sql
---     which increments tracks.play_count automatically.
--- -------------------------------------------------------------
+-- Every completed play is logged here. INSERT fires the trigger in
+-- triggers.sql which increments tracks.play_count automatically.
 CREATE TABLE IF NOT EXISTS play_history (
     history_id  SERIAL PRIMARY KEY,
     user_id     INT       NOT NULL REFERENCES users(user_id)   ON DELETE CASCADE,
@@ -106,10 +76,7 @@ CREATE TABLE IF NOT EXISTS play_history (
     played_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- -------------------------------------------------------------
 -- 9. USER_FOLLOWS_ARTIST  [many-to-many junction]
---     Relationship: USERS (many) — (many) ARTISTS
--- -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_follows_artist (
     user_id     INT       NOT NULL REFERENCES users(user_id)    ON DELETE CASCADE,
     artist_id   INT       NOT NULL REFERENCES artists(artist_id) ON DELETE CASCADE,
@@ -117,11 +84,9 @@ CREATE TABLE IF NOT EXISTS user_follows_artist (
     PRIMARY KEY (user_id, artist_id)
 );
 
--- -------------------------------------------------------------
 -- 10. AUDIT_LOG
---     Records every UPDATE to the users table (email / username
---     changes). Populated automatically by trg_audit_users.
--- -------------------------------------------------------------
+-- Records every UPDATE to the users table (email / username changes),
+-- populated automatically by trg_audit_users.
 CREATE TABLE IF NOT EXISTS audit_log (
     log_id      SERIAL PRIMARY KEY,
     table_name  VARCHAR(64)  NOT NULL DEFAULT 'users',
@@ -136,20 +101,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_log_record_id  ON audit_log(record_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_changed_at ON audit_log(changed_at);
 
--- =============================================================
--- INDEXES
--- Added on columns used frequently in JOINs and WHERE clauses.
--- =============================================================
-
--- Speed up album lookups by artist
+-- Indexes on columns used frequently in JOINs and WHERE clauses.
 CREATE INDEX IF NOT EXISTS idx_albums_artist_id       ON albums(artist_id);
--- Speed up track lookups by album and genre
 CREATE INDEX IF NOT EXISTS idx_tracks_album_id        ON tracks(album_id);
 CREATE INDEX IF NOT EXISTS idx_tracks_genre_id        ON tracks(genre_id);
--- Speed up history queries by user and by track
 CREATE INDEX IF NOT EXISTS idx_play_history_user_id   ON play_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_play_history_track_id  ON play_history(track_id);
--- Speed up time-range queries on play history
 CREATE INDEX IF NOT EXISTS idx_play_history_played_at ON play_history(played_at);
--- Speed up playlist ownership queries
 CREATE INDEX IF NOT EXISTS idx_playlists_user_id      ON playlists(user_id);

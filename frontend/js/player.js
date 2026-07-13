@@ -1,7 +1,3 @@
-/* ============================================================
-   Resonate — Player: playTrack, bump animation, controls
-   ============================================================ */
-
 async function playTrack(track, countNode) {
   State.nowPlaying = track;
   const player = $("#player");
@@ -14,8 +10,7 @@ async function playTrack(track, countNode) {
   $("#player-toggle").textContent = "⏸";
 
   try {
-    // POST /play -> server inserts play_history; SQL trigger bumps
-    // tracks.play_count; we get the fresh count back and show it tick up.
+    // play_count comes back from the server since the SQL trigger bumps it, not us
     const result = await API.play(track.track_id);
     const play_count = result?.play_count ?? null;
 

@@ -1,7 +1,3 @@
-/* ============================================================
-   Resonate — Browse view: track list, search, track detail
-   ============================================================ */
-
 function skeleton() {
   const wrap = el("div");
   for (let i = 0; i < 6; i++) wrap.append(el("div", { class: "skeleton-row" }));
@@ -16,7 +12,7 @@ function errorState(msg) {
       "Is the backend running? Check CONFIG.API_BASE in js/config.js."));
 }
 
-/* ---- Track row (reused by Browse / Playlist / Charts) ---- */
+// Reused by Browse / Playlist / Charts
 function trackRow(t, index, opts = {}) {
   const row = el("div", { class: "track-row", dataset: { trackId: t.track_id } },
     el("div", { class: "track-row__lead" },
@@ -41,9 +37,8 @@ function trackRow(t, index, opts = {}) {
   return row;
 }
 
-/* ---- Browse / Search ---- */
 async function renderBrowse(_, append = false) {
-  // Reset pagination when search/filter changes (not when appending)
+  // reset pagination on a fresh search/filter, but not when loading more of the same list
   if (!append) {
     State.browseOffset = 0;
     State.browseTracks = [];
@@ -75,7 +70,6 @@ async function renderBrowse(_, append = false) {
   const list = el("div", { class: "tracklist" });
   State.browseTracks.forEach((t, i) => list.append(trackRow(t, i + 1)));
 
-  // Load more button
   const loadMoreBtn = el("button", {
     class: "btn btn--ghost load-more-btn",
     style: State.browseHasMore ? "" : "display:none",
@@ -92,10 +86,8 @@ async function renderBrowse(_, append = false) {
       State.browseHasMore = more.length === BROWSE_PAGE_SIZE;
       State.browseOffset += more.length;
 
-      // Append new rows to existing list
       more.forEach((t, i) => list.append(trackRow(t, State.browseOffset - more.length + i + 1)));
 
-      // Update count
       const countEl = document.getElementById("browse-count");
       if (countEl) countEl.textContent = `${State.browseOffset} tracks loaded`;
 
@@ -111,16 +103,13 @@ async function renderBrowse(_, append = false) {
   return el("div", {}, head, list, el("div", { class: "load-more-wrap" }, loadMoreBtn));
 }
 
-/* ---- Track detail ---- */
 async function renderTrackDetail(params) {
   const { track: t } = await API.track(params[0]);
   const countVal = el("span", { class: "fact__v", dataset: { count: "1" } }, fmtCount(t.user_plays ?? 0));
 
-  // Follow button (only rendered when we have an artist_id)
   let followBtn = null;
   if (t.artist_id) {
     followBtn = el("button", { class: "btn btn--ghost" }, "Follow Artist");
-    // Check current status then wire up toggle
     API.followStatus(t.artist_id).then(({ following }) => {
       followBtn.textContent = following ? "✓ Following" : "Follow Artist";
       followBtn.classList.toggle("btn--active", following);

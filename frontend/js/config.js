@@ -1,25 +1,11 @@
-/* ============================================================
-   Resonate — CONFIG + API CONTRACT + MOCK BACKEND
-   ============================================================ */
-
-/* ============================================================
-   1. CONFIG
-   ============================================================ */
 const CONFIG = {
-  // When true, the app serves data from the in-memory MOCK below.
-  // When M4's Flask API is running, set this to false and point
-  // API_BASE at it (Flask default is http://localhost:5000).
+  // When true, the app serves data from the in-memory MOCK below instead of the Flask API.
   USE_MOCK: false,
   API_BASE: "",  // empty = same origin as Flask server (http://localhost:5001)
 };
 
-/* ============================================================
-   2. API CONTRACT  (what the frontend asks the backend for)
-   ------------------------------------------------------------
-   Every method returns a Promise that resolves to the JSON
-   described in its comment. M4: match these and the UI works
-   untouched. All requests send cookies (credentials: include)
-   for Flask session auth.
+/* API contract — what the frontend expects the Flask backend to return.
+   All requests send cookies (credentials: include) for Flask session auth.
 
      POST   /register   {email, username, password}
                         -> { user: {user_id, username, email} }
@@ -55,7 +41,7 @@ const CONFIG = {
      track_id, title, artist, album, genre,
      duration_sec, play_count
    }
-   ============================================================ */
+*/
 
 const API = {
   async _req(method, path, body) {
@@ -219,9 +205,7 @@ const API = {
   unfollowArtist: (artistId) => API._req("DELETE",  `/artists/${artistId}/follow`),
 };
 
-/* ============================================================
-   3. MOCK BACKEND  (delete or ignore once API is live)
-   ============================================================ */
+// Mock backend — used only when CONFIG.USE_MOCK is true
 const Mock = (() => {
   const genres = [
     { genre_id: 1, name: "pop" }, { genre_id: 2, name: "rock" },

@@ -1,27 +1,20 @@
-/* ============================================================
-   Resonate — State, DOM helpers, formatters, utilities
-   ============================================================ */
-
-/* ---------- App state ---------- */
 const State = {
   user: null,
   genres: [],
   search: "",
   genreFilter: "",
-  nowPlaying: null,    // Track currently in the player
-  browseOffset: 0,     // current pagination offset for Browse
-  browseTracks: [],    // accumulated tracks across pages
-  browseHasMore: true, // whether more tracks are available
+  nowPlaying: null,
+  browseOffset: 0,
+  browseTracks: [],
+  browseHasMore: true,
 };
 
 const BROWSE_PAGE_SIZE = 20;
 
-/* ---------- DOM selectors ---------- */
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-/* ---------- Element builder ---------- */
-// Build DOM safely from a tag + props + children (avoids innerHTML for data)
+// Builds DOM from a tag + props + children instead of innerHTML, so track titles etc. can't break out as HTML
 function el(tag, props = {}, ...children) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
@@ -37,7 +30,6 @@ function el(tag, props = {}, ...children) {
   return node;
 }
 
-/* ---------- Formatters ---------- */
 const fmtDuration = (sec) => {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
@@ -45,10 +37,8 @@ const fmtDuration = (sec) => {
 };
 const fmtCount = (n) => n.toLocaleString("en-US");
 
-// Capitalise first letter of each word (handles hyphenated genre names)
 const cap = (s) => (s || "").replace(/(^|[-\s])\w/g, (m) => m.toUpperCase());
 
-/* ---------- Toast notifications ---------- */
 function toast(message, kind = "") {
   const t = el("div", { class: `toast ${kind ? "toast--" + kind : ""}` }, message);
   $("#toast-stack").append(t);

@@ -1,7 +1,3 @@
-/* ============================================================
-   Resonate — Playlists grid and cards
-   ============================================================ */
-
 .pl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 .pl-card {
   background: var(--ink-2);

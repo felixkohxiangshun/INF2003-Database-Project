@@ -1,7 +1,3 @@
-/* ============================================================
-   Resonate — Playlists view (list + detail)
-   ============================================================ */
-
 async function renderPlaylists(params) {
   if (params[0]) return renderPlaylistDetail(params[0]);
 
@@ -52,7 +48,6 @@ async function renderPlaylistDetail(id) {
       },
     });
 
-    // Drag handle injected before the index/play lead
     const handle = el("span", { class: "track-row__handle", title: "Drag to reorder" }, "⠿");
     row.insertBefore(handle, row.firstChild);
     row.setAttribute("draggable", "true");

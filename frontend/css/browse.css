@@ -1,9 +1,4 @@
-/* ============================================================
-   Resonate — Browse view: page headers, skeleton, track list,
-              track detail, and load-more
-   ============================================================ */
-
-/* ---------- Shared page bits ---------- */
+/* Shared page bits */
 .page-head { margin-bottom: 22px; }
 .page-head h1 {
   font-family: var(--font-display);
@@ -41,7 +36,7 @@
 }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-/* ---------- Track list (Browse, Playlist, Charts) ---------- */
+/* Track list (Browse, Playlist, Charts) */
 .tracklist { display: flex; flex-direction: column; }
 .track-row {
   display: grid;
@@ -113,7 +108,7 @@
 .track-row.is-dragging { opacity: 0.35; }
 .track-row.drag-over { border-top: 2px solid var(--coral); }
 
-/* ---------- Load more ---------- */
+/* Load more */
 .load-more-wrap {
   display: flex;
   justify-content: center;
@@ -123,7 +118,7 @@
   min-width: 140px;
 }
 
-/* ---------- Track detail ---------- */
+/* Track detail */
 .detail { display: flex; gap: 28px; align-items: flex-end; margin-bottom: 28px; flex-wrap: wrap; }
 .detail__cover {
   width: 200px; height: 200px;

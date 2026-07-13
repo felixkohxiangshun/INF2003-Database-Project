@@ -1,7 +1,4 @@
-"""backend/utils.py
-==================
-Shared helpers used across multiple route modules.
-"""
+"""Shared helpers used across multiple route modules."""
 
 from __future__ import annotations
 

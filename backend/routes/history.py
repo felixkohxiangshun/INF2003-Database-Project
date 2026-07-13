@@ -1,8 +1,4 @@
-"""History & Stats Routes
-
-- GET /history          — current user's recent play history
-- GET /stats            — top tracks and genres across all users (Charts page)
-"""
+"""History & stats routes."""
 
 from __future__ import annotations
 
@@ -17,9 +13,6 @@ log = logging.getLogger(__name__)
 bp  = Blueprint("history", __name__)
 
 
-# ---------------------------------------------------------------------------
-# GET /history  — current user's recent play history
-# ---------------------------------------------------------------------------
 @bp.route("/history", methods=["GET"])
 @auth_required
 def get_history():
@@ -52,7 +45,6 @@ def get_history():
         {"user_id": g.user_id, "limit": limit, "offset": offset},
     )
 
-    # Serialise datetimes
     result = []
     for r in rows:
         r = dict(r)
@@ -62,12 +54,8 @@ def get_history():
     return jsonify(result)
 
 
-# ---------------------------------------------------------------------------
-# GET /stats  — Charts page: top tracks + top genres from play_history
-# ---------------------------------------------------------------------------
 @bp.route("/stats", methods=["GET"])
 def get_stats():
-
     top_tracks = query(
         """
         SELECT t.track_id,

@@ -13,7 +13,6 @@ bp  = Blueprint("tracks", __name__)
 
 
 def _parse_pagination(args) -> tuple[int, int] | tuple[None, None]:
-   
     try:
         limit  = min(int(args.get("limit",  20)), 100)
         offset = max(int(args.get("offset",  0)),  0)
@@ -22,12 +21,8 @@ def _parse_pagination(args) -> tuple[int, int] | tuple[None, None]:
         return None, None
 
 
-# ---------------------------------------------------------------------------
-# GET /tracks
-# ---------------------------------------------------------------------------
 @bp.route("/tracks", methods=["GET"])
 def list_tracks():
-   
     limit, offset = _parse_pagination(request.args)
     if limit is None:
         return jsonify({"error": "limit and offset must be integers"}), 400
@@ -65,12 +60,8 @@ def list_tracks():
     return jsonify(_serialize(rows))
 
 
-# ---------------------------------------------------------------------------
-# GET /tracks/<id>
-# ---------------------------------------------------------------------------
 @bp.route("/tracks/<int:track_id>", methods=["GET"])
 def get_track(track_id: int):
-    
     from flask import session as flask_session
     user_id = flask_session.get("user_id")
 
@@ -108,12 +99,8 @@ def get_track(track_id: int):
     return jsonify(_serialize(row))
 
 
-# ---------------------------------------------------------------------------
-# GET /artists
-# ---------------------------------------------------------------------------
 @bp.route("/artists", methods=["GET"])
 def list_artists():
-
     limit, offset = _parse_pagination(request.args)
     if limit is None:
         return jsonify({"error": "limit and offset must be integers"}), 400
@@ -139,9 +126,6 @@ def list_artists():
     return jsonify(rows)
 
 
-# ---------------------------------------------------------------------------
-# GET /artists/<id>
-# ---------------------------------------------------------------------------
 @bp.route("/artists/<int:artist_id>", methods=["GET"])
 def get_artist(artist_id: int):
     artist = query_one(
@@ -175,13 +159,9 @@ def get_artist(artist_id: int):
     return jsonify(_serialize({**artist, "albums": albums}))
 
 
-# ---------------------------------------------------------------------------
-# --------------------Follow / Unfollow Artist-------------------------------
-# ---------------------------------------------------------------------------
 @bp.route("/artists/<int:artist_id>/follow", methods=["GET"])
 @auth_required
 def follow_status(artist_id: int):
-
     row = query_one(
         "SELECT 1 FROM user_follows_artist WHERE user_id=%(uid)s AND artist_id=%(aid)s",
         {"uid": g.user_id, "aid": artist_id},
@@ -278,9 +258,6 @@ def unfollow_artist(artist_id: int):
     return jsonify({"following": False})
 
 
-# ---------------------------------------------------------------------------
-# POST /play
-# ---------------------------------------------------------------------------
 @bp.route("/play", methods=["POST"])
 @auth_required
 def log_play():
@@ -306,13 +283,13 @@ def log_play():
     if not track:
         return jsonify({"error": "Track not found"}), 404
 
-    # Insert play — trigger fires AFTER this, incrementing play_count
+    # play_count is incremented by an AFTER INSERT trigger
     execute(
         "INSERT INTO play_history (user_id, track_id) VALUES (%(user_id)s, %(track_id)s)",
         {"user_id": g.user_id, "track_id": track_id},
     )
 
-    # Read play_count after trigger has fired; also fetch username for Neo4j
+    # re-read play_count post-trigger; also grab username for the Neo4j write below
     row = query_one(
         """
         SELECT t.play_count, t.title, g.name AS genre, u.username
@@ -325,7 +302,7 @@ def log_play():
     )
     play_count = row["play_count"] if row else None
 
-    # Real-time Neo4j write: keep LISTENED_TO edge in sync without running sync.py
+    # keep LISTENED_TO edge in sync without waiting for the batch sync job
     try:
         from backend.graph import get_driver
         driver = get_driver()
@@ -358,9 +335,6 @@ def log_play():
     return jsonify({"ok": True, "play_count": play_count})
 
 
-# ---------------------------------------------------------------------------
-# GET /genres
-# ---------------------------------------------------------------------------
 @bp.route("/genres", methods=["GET"])
 def list_genres():
     rows = query("SELECT genre_id, name FROM genres ORDER BY name ASC")

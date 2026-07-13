@@ -1,7 +1,4 @@
--- =============================================================
 -- M2 SQL Developer — Nested / Complex Queries
--- Project: Music Streaming Database
--- Target DB: PostgreSQL
 -- Placeholder style: psycopg2 named parameters
 --
 -- API endpoints (backend/routes/insights.py):
@@ -9,12 +6,8 @@
 --   Query 3 → GET /artists/<id>/related        (Artist page)
 --   Query 6 → GET /playlists/<id>/completionists
 --   Query 7 → GET /artists/top-performers
--- =============================================================
 
--- -------------------------------------------------------------
 -- 1. TOP 5 MOST-PLAYED TRACKS PER GENRE THIS MONTH
--- Uses CTE + window function.
--- -------------------------------------------------------------
 WITH monthly_track_plays AS (
     SELECT
         g.genre_id,
@@ -45,10 +38,7 @@ FROM ranked
 WHERE genre_rank <= 5
 ORDER BY genre_name, genre_rank;
 
--- -------------------------------------------------------------
 -- 2. FREE PLAN USERS WHO PLAYED MORE THAN 20 TRACKS TODAY
--- Uses HAVING to filter highly active users on a given day.
--- -------------------------------------------------------------
 SELECT
     u.user_id,
     u.username,
@@ -62,10 +52,8 @@ GROUP BY u.user_id, u.username, u.email
 HAVING COUNT(ph.history_id) > 20
 ORDER BY plays_today DESC;
 
--- -------------------------------------------------------------
 -- 3. ARTISTS FOLLOWED BY USERS WHO ALSO FOLLOW A GIVEN ARTIST
 -- Collaborative-filter seed: people who follow artist X also follow...
--- -------------------------------------------------------------
 SELECT
     other_artist.artist_id,
     other_artist.name AS recommended_artist,
@@ -81,11 +69,9 @@ GROUP BY other_artist.artist_id, other_artist.name
 ORDER BY shared_follower_count DESC, recommended_artist ASC
 LIMIT 10;
 
--- -------------------------------------------------------------
 -- 4. PLAYLISTS CONTAINING A TRACK, ORDERED BY OWNER POPULARITY
 -- The schema has no playlist followers table, so owner popularity is
 -- approximated by artist follows + total listening activity.
--- -------------------------------------------------------------
 WITH owner_popularity AS (
     SELECT
         u.user_id,
@@ -114,11 +100,9 @@ WHERE pt.track_id = %(track_id)s
   AND p.is_public = TRUE
 ORDER BY op.popularity_score DESC, p.created_at DESC;
 
--- -------------------------------------------------------------
 -- 5. PERSONALIZED SQL RECOMMENDATION: SAME GENRES AS USER'S HISTORY
--- Useful SQL baseline before Neo4j recommendation is ready.
--- Excludes tracks the user has already played.
--- -------------------------------------------------------------
+-- SQL baseline before the Neo4j recommendation engine is ready. Excludes
+-- tracks the user has already played.
 WITH user_genre_counts AS (
     SELECT
         t.genre_id,
@@ -153,10 +137,8 @@ FROM candidate_tracks
 ORDER BY recommendation_score DESC, play_count DESC
 LIMIT 10;
 
--- -------------------------------------------------------------
 -- 6. USERS WHO LISTENED TO ALL TRACKS IN A GIVEN PLAYLIST
--- Uses NOT EXISTS double-negative relational division pattern.
--- -------------------------------------------------------------
+-- Relational division via the NOT EXISTS double-negative pattern.
 SELECT u.user_id, u.username
 FROM users u
 WHERE NOT EXISTS (
@@ -171,10 +153,7 @@ WHERE NOT EXISTS (
       )
 );
 
--- -------------------------------------------------------------
 -- 7. ARTISTS WITH ABOVE-AVERAGE TRACK POPULARITY IN THEIR GENRE
--- Uses nested aggregate comparison.
--- -------------------------------------------------------------
 SELECT
     ar.artist_id,
     ar.name AS artist_name,

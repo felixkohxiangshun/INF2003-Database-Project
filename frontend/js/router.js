@@ -1,7 +1,3 @@
-/* ============================================================
-   Resonate — Hash router (#/browse, #/tracks/:id, …)
-   ============================================================ */
-
 const routes = {
   browse:    renderBrowse,
   tracks:    renderTrackDetail,   // #/tracks/:id
@@ -24,9 +20,7 @@ async function router() {
   const { name, params } = parseHash();
   const fn = routes[name] || renderBrowse;
 
-  // highlight active nav
   $$(".nav__link").forEach((a) => a.classList.toggle("is-active", a.dataset.route === name));
-  // genre chips only matter on browse
   $("#genre-chips").style.display = name === "browse" ? "flex" : "none";
 
   const root = $("#view-root");

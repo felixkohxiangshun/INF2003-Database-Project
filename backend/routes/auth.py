@@ -29,9 +29,6 @@ def _set_session(user: dict) -> None:
     session.permanent   = True
 
 
-# ---------------------------------------------------------------------------
-# POST /auth/register
-# ---------------------------------------------------------------------------
 @bp.route("/register", methods=["POST"])
 def register():
     body     = request.get_json(silent=True) or {}
@@ -68,9 +65,6 @@ def register():
     }), 201
 
 
-# ---------------------------------------------------------------------------
-# POST /auth/login
-# ---------------------------------------------------------------------------
 @bp.route("/login", methods=["POST"])
 def login():
     body     = request.get_json(silent=True) or {}
@@ -99,9 +93,6 @@ def login():
     })
 
 
-# ---------------------------------------------------------------------------
-# POST /auth/logout
-# ---------------------------------------------------------------------------
 @bp.route("/logout", methods=["POST"])
 @auth_required
 def logout():
@@ -109,9 +100,6 @@ def logout():
     return jsonify({"message": "Logged out"})
 
 
-# ---------------------------------------------------------------------------
-# GET /auth/me
-# ---------------------------------------------------------------------------
 @bp.route("/me", methods=["GET"])
 @auth_required
 def me():
@@ -134,9 +122,6 @@ def me():
     return jsonify(user)
 
 
-# ---------------------------------------------------------------------------
-# GET /auth/profile
-# ---------------------------------------------------------------------------
 @bp.route("/profile", methods=["GET"])
 @auth_required
 def profile():
@@ -186,9 +171,6 @@ def profile():
     })
 
 
-# ---------------------------------------------------------------------------
-# PUT /auth/me
-# ---------------------------------------------------------------------------
 @bp.route("/me", methods=["PUT"])
 @auth_required
 def update_profile():
@@ -248,9 +230,6 @@ def update_profile():
     return jsonify(updated)
 
 
-# ---------------------------------------------------------------------------
-# PUT /auth/password
-# ---------------------------------------------------------------------------
 @bp.route("/password", methods=["PUT"])
 @auth_required
 def change_password():

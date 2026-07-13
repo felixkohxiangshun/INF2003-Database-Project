@@ -1,17 +1,6 @@
 """
-nosql/sync.py
-=============
-Syncs data from PostgreSQL into Neo4j.
-
-Run after sql/seed.py has populated the relational database.
-
-What it syncs:
-  1. User nodes          ← users table
-  2. Artist nodes        ← artists table
-  3. Track nodes         ← tracks + genres tables
-  4. PERFORMED_BY edges  ← tracks → albums → artists
-  5. LISTENED_TO edges   ← play_history (aggregated per user/track)
-  6. FOLLOWS edges       ← user_follows_artist
+Syncs data from PostgreSQL into Neo4j. Run after sql/seed.py has populated
+the relational database.
 
 Usage:
     cd INF2003-Database-Project
@@ -28,7 +17,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Config ─────────────────────────────────────────────────────────────────────
 PG_CONFIG = {
     "host":     os.getenv("DB_HOST",     "localhost"),
     "port":     int(os.getenv("DB_PORT", "5432")),
@@ -42,8 +30,6 @@ NEO4J_USER     = os.getenv("NEO4J_USER",     "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 BATCH_SIZE = 500  # rows per Neo4j transaction batch
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def pg_connect():
     try:
@@ -76,8 +62,6 @@ def run_batch(session, query, rows):
         session.run(query, rows=batch)
         total += len(batch)
     return total
-
-# ── Sync functions ─────────────────────────────────────────────────────────────
 
 def sync_users(pg_cur, session):
     print("\n  Syncing Users...")
@@ -193,9 +177,8 @@ def sync_follows(pg_cur, session):
 
 
 def ensure_constraints(session):
-    """Create uniqueness constraints and indexes if they don't exist.
-    Constraints create backing indexes automatically, making every
-    MERGE lookup O(log n) instead of a full graph scan."""
+    """Constraints create backing indexes automatically, so every
+    MERGE lookup below is O(log n) instead of a full graph scan."""
     print("\n  Ensuring Neo4j constraints and indexes...")
     stmts = [
         "CREATE CONSTRAINT user_id_unique IF NOT EXISTS FOR (u:User) REQUIRE u.user_id IS UNIQUE",
@@ -211,11 +194,9 @@ def ensure_constraints(session):
 def seed_similar_to(session):
     """Build SIMILAR_TO edges between artists who share genres.
 
-    Previous approach: matched ALL (t1, t2) track pairs globally, then
-    filtered by genre — O(tracks²) which is a full Cartesian product.
-
-    Fixed approach: group artists BY genre first, then pair only within
-    each genre. With 8 genres and ~50 artists the inner set is tiny.
+    Grouping by genre first and pairing only within each group avoids
+    the O(tracks^2) cartesian join of matching all track pairs and
+    filtering by genre afterward.
     """
     print("\n  Computing SIMILAR_TO relationships (shared genres)...")
     session.run("""
@@ -231,8 +212,6 @@ def seed_similar_to(session):
     """)
     print("    SIMILAR_TO relationships computed")
 
-
-# ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
     print("=== Music Streaming — Neo4j Sync ===\n")

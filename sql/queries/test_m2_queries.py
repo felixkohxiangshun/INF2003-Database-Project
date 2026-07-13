@@ -1,6 +1,6 @@
 """
 test_m2_queries.py
-==================
+
 Standalone test script for M2's SQL queries.
 Tests all queries in: crud_users.sql, crud_tracks.sql,
                       crud_playlists.sql, nested_queries.sql, analysis.sql
@@ -23,7 +23,6 @@ import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 
-# ── Load .env ──────────────────────────────────────────────────────────────────
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
 DB_CONFIG = {
@@ -34,7 +33,6 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD", ""),
 }
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
 PASS = "\033[92m[PASS]\033[0m"
 FAIL = "\033[91m[FAIL]\033[0m"
 INFO = "\033[94m[INFO]\033[0m"
@@ -42,7 +40,6 @@ INFO = "\033[94m[INFO]\033[0m"
 results = []
 
 def run(cur, label, sql, params=None):
-    """Execute a query and record pass/fail."""
     try:
         cur.execute(sql, params or {})
         rows = cur.fetchall() if cur.description else []
@@ -56,10 +53,9 @@ def run(cur, label, sql, params=None):
         return []
 
 def run_noreturn(cur, label, sql, params=None):
-    """Execute a DML statement that may not return rows."""
     try:
         cur.execute(sql, params or {})
-        # Some statements use RETURNING — fetchall is safe either way
+        # RETURNING clauses vary by statement — fetchall is safe either way
         rows = cur.fetchall() if cur.description else []
         print(f"  {PASS} {label}")
         results.append((label, True, None))
@@ -70,7 +66,6 @@ def run_noreturn(cur, label, sql, params=None):
         results.append((label, False, str(e)))
         return []
 
-# ── Main ───────────────────────────────────────────────────────────────────────
 def main():
     print(f"\n{INFO} Connecting to PostgreSQL at {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}...")
     try:
@@ -85,12 +80,10 @@ def main():
     cur = conn.cursor()
 
     try:
-        # ── Seed test data ─────────────────────────────────────────────────────
         print("=" * 60)
         print("SEEDING TEST DATA")
         print("=" * 60)
 
-        # Genre
         cur.execute("""
             INSERT INTO genres (name) VALUES ('Pop')
             ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
@@ -98,7 +91,6 @@ def main():
         """)
         genre_id = cur.fetchone()['genre_id']
 
-        # Artist
         cur.execute("""
             INSERT INTO artists (name, bio)
             VALUES ('Test Artist', 'Test bio')
@@ -106,7 +98,7 @@ def main():
         """)
         artist_id = cur.fetchone()['artist_id']
 
-        # Artist 2 (for follow/recommendation tests)
+        # second artist needed for follow/recommendation tests
         cur.execute("""
             INSERT INTO artists (name, bio)
             VALUES ('Another Artist', 'Another bio')
@@ -114,7 +106,6 @@ def main():
         """)
         artist_id_2 = cur.fetchone()['artist_id']
 
-        # Album
         cur.execute("""
             INSERT INTO albums (artist_id, title, release_date)
             VALUES (%(artist_id)s, 'Test Album', '2024-01-01')
@@ -122,7 +113,6 @@ def main():
         """, {'artist_id': artist_id})
         album_id = cur.fetchone()['album_id']
 
-        # Tracks (3 tracks)
         track_ids = []
         for i in range(3):
             cur.execute("""
@@ -132,7 +122,6 @@ def main():
             """, {'album_id': album_id, 'genre_id': genre_id, 'title': f'Test Track {i+1}'})
             track_ids.append(cur.fetchone()['track_id'])
 
-        # Users (2 users)
         cur.execute("""
             INSERT INTO users (email, username, password_hash)
             VALUES ('testuser1@test.com', 'testuser1', 'hashedpw1')
@@ -147,7 +136,7 @@ def main():
         """)
         user_id_2 = cur.fetchone()['user_id']
 
-        # Play history — user 1 plays all 3 tracks multiple times
+        # 8 plays x 3 tracks = 24, clears the ">20 plays today" test threshold
         for track_id in track_ids:
             for _ in range(8):
                 cur.execute("""
@@ -155,7 +144,6 @@ def main():
                     VALUES (%(user_id)s, %(track_id)s)
                 """, {'user_id': user_id_1, 'track_id': track_id})
 
-        # Playlist
         cur.execute("""
             INSERT INTO playlists (user_id, name, is_public)
             VALUES (%(user_id)s, 'Test Playlist', TRUE)
@@ -163,13 +151,11 @@ def main():
         """, {'user_id': user_id_1})
         playlist_id = cur.fetchone()['playlist_id']
 
-        # Add track 1 to playlist at position 1
         cur.execute("""
             INSERT INTO playlist_tracks (playlist_id, track_id, position)
             VALUES (%(playlist_id)s, %(track_id)s, 1)
         """, {'playlist_id': playlist_id, 'track_id': track_ids[0]})
 
-        # Follow artist
         cur.execute("""
             INSERT INTO user_follows_artist (user_id, artist_id)
             VALUES (%(user_id)s, %(artist_id)s)
@@ -177,7 +163,6 @@ def main():
 
         print(f"  {INFO} Seed data created (user_id={user_id_1}, artist_id={artist_id}, playlist_id={playlist_id})\n")
 
-        # ── crud_users.sql ─────────────────────────────────────────────────────
         print("=" * 60)
         print("crud_users.sql")
         print("=" * 60)
@@ -233,7 +218,6 @@ def main():
             "DELETE FROM users WHERE user_id = %(user_id)s RETURNING user_id, email, username",
             {'user_id': user_id_2})
 
-        # ── crud_tracks.sql ────────────────────────────────────────────────────
         print()
         print("=" * 60)
         print("crud_tracks.sql")
@@ -348,7 +332,6 @@ def main():
             "DELETE FROM tracks WHERE track_id = %(track_id)s RETURNING track_id, title",
             {'track_id': track_ids[2]})
 
-        # ── crud_playlists.sql ─────────────────────────────────────────────────
         print()
         print("=" * 60)
         print("crud_playlists.sql")
@@ -469,7 +452,6 @@ def main():
             "DELETE FROM playlists WHERE playlist_id = %(playlist_id)s AND user_id = %(user_id)s RETURNING playlist_id, name",
             {'playlist_id': playlist_id, 'user_id': user_id_1})
 
-        # ── nested_queries.sql ─────────────────────────────────────────────────
         print()
         print("=" * 60)
         print("nested_queries.sql")
@@ -607,7 +589,6 @@ def main():
             ORDER BY artist_avg_play_count DESC
             """)
 
-        # ── analysis.sql ───────────────────────────────────────────────────────
         print()
         print("=" * 60)
         print("analysis.sql")
@@ -647,13 +628,12 @@ def main():
         traceback.print_exc()
 
     finally:
-        # ── Always rollback — DB is left untouched ─────────────────────────────
+        # always rollback so the DB is left untouched
         conn.rollback()
         cur.close()
         conn.close()
         print(f"\n{INFO} Transaction rolled back — database is unchanged.\n")
 
-    # ── Summary ────────────────────────────────────────────────────────────────
     print("=" * 60)
     print("SUMMARY")
     print("=" * 60)

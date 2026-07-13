@@ -1,21 +1,13 @@
--- =============================================================
 -- M2 SQL Developer — User CRUD Queries
--- Project: Music Streaming Database
--- Target DB: PostgreSQL
 -- Placeholder style: psycopg2 named parameters, e.g. %(user_id)s
--- =============================================================
 
--- -------------------------------------------------------------
 -- 1. CREATE USER
 -- Used by backend POST /register.
--- -------------------------------------------------------------
 INSERT INTO users (email, username, password_hash)
 VALUES (%(email)s, %(username)s, %(password_hash)s)
 RETURNING user_id, email, username, created_at;
 
--- -------------------------------------------------------------
 -- 2. READ USER BY ID
--- -------------------------------------------------------------
 SELECT
     u.user_id,
     u.email,
@@ -24,18 +16,14 @@ SELECT
 FROM users u
 WHERE u.user_id = %(user_id)s;
 
--- -------------------------------------------------------------
 -- 3. READ USER BY EMAIL
 -- Used by login/auth flow.
--- -------------------------------------------------------------
 SELECT user_id, email, username, password_hash, created_at
 FROM users
 WHERE email = %(email)s;
 
--- -------------------------------------------------------------
 -- 4. UPDATE USER PROFILE
 -- COALESCE keeps old value when backend passes NULL.
--- -------------------------------------------------------------
 UPDATE users
 SET
     email    = COALESCE(%(email)s, email),
@@ -43,26 +31,19 @@ SET
 WHERE user_id = %(user_id)s
 RETURNING user_id, email, username, created_at;
 
--- -------------------------------------------------------------
 -- 5. UPDATE PASSWORD HASH
--- -------------------------------------------------------------
 UPDATE users
 SET password_hash = %(password_hash)s
 WHERE user_id = %(user_id)s
 RETURNING user_id, email, username;
 
--- -------------------------------------------------------------
 -- 6. DELETE USER
 -- Cascades to playlists, play_history, and artist follows.
--- -------------------------------------------------------------
 DELETE FROM users
 WHERE user_id = %(user_id)s
 RETURNING user_id, email, username;
 
--- -------------------------------------------------------------
 -- 7. USER LISTENING SUMMARY
--- Useful for profile/dashboard page.
--- -------------------------------------------------------------
 SELECT
     u.user_id,
     u.username,

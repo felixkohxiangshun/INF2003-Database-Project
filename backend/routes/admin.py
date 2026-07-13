@@ -14,9 +14,7 @@ log = logging.getLogger(__name__)
 bp  = Blueprint("admin", __name__, url_prefix="/admin")
 
 
-# ---------------------------------------------------------------------------
 # Genres
-# ---------------------------------------------------------------------------
 
 @bp.route("/genres", methods=["GET"])
 @auth_required
@@ -45,9 +43,7 @@ def create_genre():
     return jsonify(rows[0]), 201
 
 
-# ---------------------------------------------------------------------------
 # Artists
-# ---------------------------------------------------------------------------
 
 @bp.route("/artists", methods=["POST"])
 @auth_required
@@ -127,9 +123,7 @@ def delete_artist(artist_id: int):
     return jsonify({"message": "Artist deleted"})
 
 
-# ---------------------------------------------------------------------------
 # Albums
-# ---------------------------------------------------------------------------
 
 @bp.route("/albums", methods=["POST"])
 @auth_required
@@ -196,9 +190,7 @@ def delete_album(album_id: int):
     return jsonify({"message": "Album deleted"})
 
 
-# ---------------------------------------------------------------------------
 # Tracks
-# ---------------------------------------------------------------------------
 
 @bp.route("/tracks", methods=["POST"])
 @auth_required
@@ -349,9 +341,7 @@ def delete_track(track_id: int):
     return jsonify({"message": "Track deleted"})
 
 
-# ---------------------------------------------------------------------------
 # Audit log viewer
-# ---------------------------------------------------------------------------
 
 @bp.route("/audit-log", methods=["GET"])
 @auth_required
@@ -375,9 +365,7 @@ def audit_log():
     return jsonify(serialize(rows))
 
 
-# ---------------------------------------------------------------------------
 # Neo4j helpers
-# ---------------------------------------------------------------------------
 
 def _neo4j_merge_artist(artist_id: int, name: str):
     try:

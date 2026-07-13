@@ -1,8 +1,3 @@
-/* ============================================================
-   Resonate — Profile view
-   Displays user info and listening stats pulled from PostgreSQL.
-   ============================================================ */
-
 async function renderProfile() {
   const data = await API.profile();
 
@@ -15,12 +10,10 @@ async function renderProfile() {
     return wrap;
   }
 
-  // Format member since date
   const joined = data.created_at
     ? new Date(data.created_at).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })
     : "—";
 
-  // ── Header ────────────────────────────────────────────────────────────
   const header = el("div", { class: "profile-header" },
     el("div", { class: "profile-avatar" }, (data.username || "?")[0].toUpperCase()),
     el("div", { class: "profile-header__meta" },
@@ -28,7 +21,6 @@ async function renderProfile() {
       el("p",  { class: "profile-header__email" }, data.email),
       el("p",  { class: "profile-header__joined" }, `Member since ${joined}`)));
 
-  // ── Stats grid ────────────────────────────────────────────────────────
   const statsData = [
     { label: "Total plays",      value: fmtCount(data.total_plays    ?? 0), sub: "play_history rows" },
     { label: "Unique tracks",    value: fmtCount(data.unique_tracks  ?? 0), sub: "distinct tracks"   },
@@ -43,14 +35,12 @@ async function renderProfile() {
         el("div", { class: "profile-stat__label" }, label),
         el("div", { class: "profile-stat__sub" }, sub))));
 
-  // ── Top genre pill ────────────────────────────────────────────────────
   const genreRow = data.top_genre
     ? el("div", { class: "profile-genre" },
         el("span", { class: "profile-genre__label" }, "Top genre"),
         el("span", { class: "track-row__genre" }, data.top_genre))
     : null;
 
-  // ── Account info panel ────────────────────────────────────────────────
   const infoPanel = el("div", { class: "panel", style: "margin-top:22px" },
     el("h2", {}, "Account"),
     el("div", { class: "profile-info" },

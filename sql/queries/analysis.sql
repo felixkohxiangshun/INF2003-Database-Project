@@ -1,13 +1,5 @@
--- =============================================================
--- M2 SQL Developer — EXPLAIN ANALYZE / Performance Checks
--- Project: Music Streaming Database
--- Target DB: PostgreSQL
--- =============================================================
-
--- -------------------------------------------------------------
 -- 1. Check indexed history lookup by user.
 -- Expected index used: idx_play_history_user_id
--- -------------------------------------------------------------
 EXPLAIN ANALYZE
 SELECT *
 FROM play_history
@@ -15,20 +7,16 @@ WHERE user_id = 1
 ORDER BY played_at DESC
 LIMIT 20;
 
--- -------------------------------------------------------------
 -- 2. Check indexed history lookup by played_at.
 -- Expected index used: idx_play_history_played_at
--- -------------------------------------------------------------
 EXPLAIN ANALYZE
 SELECT COUNT(*)
 FROM play_history
 WHERE played_at >= date_trunc('month', CURRENT_DATE);
 
--- -------------------------------------------------------------
 -- 3. Check track search with joins.
--- Note: ILIKE '%term%' may require trigram index for large datasets.
--- Basic B-tree indexes help joins, not contains search.
--- -------------------------------------------------------------
+-- ILIKE '%term%' may need a trigram index for large datasets — basic B-tree
+-- indexes help the joins here, not the contains search.
 EXPLAIN ANALYZE
 SELECT
     t.track_id,
@@ -43,20 +31,15 @@ WHERE t.title ILIKE '%love%'
 ORDER BY t.play_count DESC
 LIMIT 20;
 
--- -------------------------------------------------------------
--- 4. Recommended optional indexes for search-heavy app routes.
--- Only run these if lecturer allows schema/index improvements.
--- pg_trgm makes ILIKE '%keyword%' much faster.
--- -------------------------------------------------------------
+-- 4. Optional indexes for search-heavy routes — only run if lecturer allows
+-- schema/index changes. pg_trgm makes ILIKE '%keyword%' much faster.
 -- CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- CREATE INDEX idx_tracks_title_trgm  ON tracks  USING GIN (title gin_trgm_ops);
 -- CREATE INDEX idx_artists_name_trgm  ON artists USING GIN (name gin_trgm_ops);
 -- CREATE INDEX idx_albums_title_trgm  ON albums  USING GIN (title gin_trgm_ops);
 
--- -------------------------------------------------------------
 -- 5. Consistency check: denormalised tracks.play_count vs history count.
--- Should return zero rows if trigger worked correctly.
--- -------------------------------------------------------------
+-- Should return zero rows if the trigger worked correctly.
 SELECT
     t.track_id,
     t.title,

@@ -1,9 +1,4 @@
-/* ============================================================
-   Resonate — Admin panel
-   Uses the same tokens as the rest of the app (variables.css).
-   ============================================================ */
-
-/* ── Tab bar ─────────────────────────────────────────────── */
+/* Tab bar */
 .admin-tabs {
   display: flex;
   gap: 8px;
@@ -33,7 +28,7 @@
   color: #2a0f08;
 }
 
-/* ── Section panels (matches .panel from charts.css) ─────── */
+/* Section panels (matches .panel from charts.css) */
 .admin-section {
   background: var(--ink-2);
   border: 1px solid var(--line);
@@ -50,7 +45,7 @@
   color: var(--text);
 }
 
-/* ── Forms ───────────────────────────────────────────────── */
+/* Forms */
 .admin-form {
   display: flex;
   flex-wrap: wrap;
@@ -84,7 +79,7 @@
   min-height: 60px;
 }
 
-/* ── Tables ──────────────────────────────────────────────── */
+/* Tables */
 .admin-table {
   border-collapse: collapse;
   font-size: 0.875rem;
@@ -120,7 +115,7 @@
 
 .admin-table td .btn + .btn { margin-left: 6px; }
 
-/* ── Album sub-list ──────────────────────────────────────── */
+/* Album sub-list */
 .admin-artist-block { margin-bottom: 16px; }
 
 .admin-artist-block h4 {
@@ -145,7 +140,7 @@
 }
 .admin-album-row:last-child { border-bottom: none; }
 
-/* ── Genre list ──────────────────────────────────────────── */
+/* Genre list */
 .admin-genre-list {
   list-style: none;
   margin: 0;
@@ -168,7 +163,7 @@
   min-width: 28px;
 }
 
-/* ── Audit log note ──────────────────────────────────────── */
+/* Audit log note */
 .admin-note {
   font-size: 0.85rem;
   color: var(--text-dim);
@@ -180,7 +175,7 @@
   line-height: 1.6;
 }
 
-/* ── Standalone search inputs (outside .admin-form) ─────── */
+/* Standalone search inputs (outside .admin-form) */
 .admin-search {
   background: var(--ink);
   border: 1px solid var(--line-2);
@@ -199,7 +194,7 @@
 }
 .admin-search::placeholder { color: var(--text-faint); }
 
-/* ── States ──────────────────────────────────────────────── */
+/* States */
 .admin-loading {
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -212,7 +207,7 @@
   padding: 12px 0;
 }
 
-/* ── Edit modal ──────────────────────────────────────────── */
+/* Edit modal */
 .admin-modal-overlay {
   position: fixed;
   inset: 0;

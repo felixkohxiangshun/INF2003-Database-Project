@@ -1,9 +1,4 @@
-/* ============================================================
-   Resonate — Explore view (artist path finder) +
-              Artist recommendation cards
-   ============================================================ */
-
-/* ---------- Artist cards (For You page) ---------- */
+/* Artist cards (For You page) */
 .artist-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -47,7 +42,6 @@
   color: var(--mint, #5BD6A8);
 }
 
-/* ---------- Section divider ---------- */
 .rec-section { margin-top: 36px; }
 .rec-section__label {
   font-family: var(--font-mono);
@@ -58,7 +52,7 @@
   margin: 0 0 14px;
 }
 
-/* ---------- Explore page ---------- */
+/* Explore page */
 .explore-finder {
   background: var(--ink-2);
   border: 1px solid var(--line);
@@ -97,7 +91,7 @@
   box-shadow: 0 0 0 3px var(--lav-soft);
 }
 
-/* ---------- Path result ---------- */
+/* Path result */
 .path-result {
   background: var(--ink-2);
   border: 1px solid var(--line);

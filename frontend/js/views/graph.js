@@ -1,11 +1,3 @@
-/* ============================================================
-   Resonate — Graph view: D3 force-directed visualisation of
-   the user's Neo4j listening subgraph.
-
-   Nodes:  User (coral) · Track (lavender) · Artist (mint)
-   Edges:  LISTENED_TO · PERFORMED_BY · SIMILAR_TO
-   ============================================================ */
-
 async function renderGraph() {
   const head = el("div", { class: "page-head" },
     el("p", { class: "eyebrow" }, "live neo4j subgraph · d3 force layout"),
@@ -15,7 +7,6 @@ async function renderGraph() {
   const wrap = el("div", {});
   wrap.append(head);
 
-  // Legend — two cards: Nodes | Edges
   const nodeCard = el("div", { class: "graph-legend__card" },
     el("p", { class: "graph-legend__heading" }, "Nodes"),
     ...["User", "Track", "Artist"].map((label, i) => {
@@ -43,7 +34,6 @@ async function renderGraph() {
   const svgContainer = el("div", { class: "graph-container" });
   wrap.append(legend, svgContainer);
 
-  // Load D3 from CDN dynamically (only once)
   if (!window.d3) {
     await new Promise((resolve, reject) => {
       const s = document.createElement("script");
@@ -53,7 +43,6 @@ async function renderGraph() {
     });
   }
 
-  // Fetch graph data
   const { nodes, links, message } = await API.userGraph();
 
   if (!nodes.length) {
@@ -63,7 +52,7 @@ async function renderGraph() {
     return wrap;
   }
 
-  // Init graph after container is in DOM
+  // container needs to be in the DOM before D3 can measure it, hence the timeout
   setTimeout(() => initD3Graph(svgContainer, nodes, links), 50);
 
   return wrap;
@@ -78,7 +67,7 @@ function initD3Graph(container, rawNodes, rawLinks) {
   const linkColor  = { LISTENED_TO: "#B79CFF", PERFORMED_BY: "#5BD6A8", SIMILAR_TO: "#FF6B4A" };
   const linkWidth  = { LISTENED_TO: 1.2, PERFORMED_BY: 1, SIMILAR_TO: 2 };
 
-  // Deep copy so D3 can mutate
+  // copy so D3's simulation can mutate x/y in place without touching the original API response
   const nodes = rawNodes.map(n => ({ ...n }));
   const links = rawLinks.map(l => ({ ...l }));
 
@@ -86,7 +75,6 @@ function initD3Graph(container, rawNodes, rawLinks) {
     .attr("width", "100%").attr("height", H)
     .style("display", "block");
 
-  // Arrow markers
   const defs = svg.append("defs");
   ["LISTENED_TO","PERFORMED_BY","SIMILAR_TO"].forEach(type => {
     defs.append("marker")
@@ -101,11 +89,9 @@ function initD3Graph(container, rawNodes, rawLinks) {
 
   const g = svg.append("g");
 
-  // Zoom
   svg.call(d3.zoom().scaleExtent([0.3, 3])
     .on("zoom", e => g.attr("transform", e.transform)));
 
-  // Simulation
   const sim = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id(d => d.id)
       .distance(d => d.type === "SIMILAR_TO" ? 120 : d.type === "LISTENED_TO" ? 100 : 70)
@@ -114,7 +100,6 @@ function initD3Graph(container, rawNodes, rawLinks) {
     .force("center", d3.forceCenter(W / 2, H / 2))
     .force("collision", d3.forceCollide().radius(d => nodeRadius[d.type] + 18));
 
-  // Links
   const link = g.append("g").selectAll("line")
     .data(links).enter().append("line")
     .attr("stroke", d => linkColor[d.type] || "#666")
@@ -123,7 +108,6 @@ function initD3Graph(container, rawNodes, rawLinks) {
     .attr("stroke-dasharray", d => d.type === "SIMILAR_TO" ? "5,3" : null)
     .attr("marker-end", d => `url(#arrow-${d.type})`);
 
-  // Nodes
   const node = g.append("g").selectAll("g")
     .data(nodes).enter().append("g")
     .attr("cursor", "grab")
@@ -140,7 +124,6 @@ function initD3Graph(container, rawNodes, rawLinks) {
     .attr("stroke-width", 1.5)
     .attr("stroke-opacity", 0.4);
 
-  // Tooltip
   const tooltip = d3.select(container).append("div").attr("class", "graph-tooltip");
 
   node
@@ -157,7 +140,6 @@ function initD3Graph(container, rawNodes, rawLinks) {
     })
     .on("mouseout", () => tooltip.style("display", "none"));
 
-  // Labels
   node.append("text")
     .attr("text-anchor", "middle")
     .attr("dy", d => nodeRadius[d.type] + 11)

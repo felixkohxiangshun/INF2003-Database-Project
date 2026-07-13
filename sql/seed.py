@@ -24,9 +24,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ------------------------------------------------------------------
-# Database connection — reads from .env
-# ------------------------------------------------------------------
 DB_CONFIG = {
     "host":     os.getenv("DB_HOST",     "localhost"),
     "port":     os.getenv("DB_PORT",     "5432"),
@@ -63,12 +60,7 @@ def load_csv():
     return df
 
 
-# ------------------------------------------------------------------
-# Seed helpers
-# ------------------------------------------------------------------
-
 def seed_genres(cur, df):
-    """Insert unique genres from the dataset."""
     genres = [(g,) for g in df["track_genre"].dropna().unique()]
     execute_values(cur,
         "INSERT INTO genres (name) VALUES %s ON CONFLICT (name) DO NOTHING",
@@ -78,10 +70,8 @@ def seed_genres(cur, df):
 
 
 def seed_artists(cur, df):
-    """
-    The dataset stores artists as a semicolon-separated string.
-    We take the first listed artist per track to keep it simple.
-    """
+    # Dataset stores artists as a semicolon-separated string; we just take
+    # the first listed artist per track.
     all_artists = df["artists"].str.split(";").str[0].str.strip().dropna().unique()
     artist_rows = [(a,) for a in all_artists]
     execute_values(cur,
@@ -92,10 +82,7 @@ def seed_artists(cur, df):
 
 
 def seed_albums_and_tracks(cur, df):
-    """
-    Build albums and tracks in one pass.
-    Albums are identified by (artist_name, album_name).
-    """
+    # Albums are identified by (artist_name, album_name).
     cur.execute("SELECT name, artist_id FROM artists")
     artist_map = {row[0]: row[1] for row in cur.fetchall()}
 
@@ -138,10 +125,7 @@ def seed_albums_and_tracks(cur, df):
 
 
 def seed_demo_users(cur):
-    """
-    Insert demo users with bcrypt-hashed passwords.
-    Hash below is for 'password123' — update before production use.
-    """
+    # Hash below is for 'password123' — update before production use.
     import bcrypt
     demo_hash = bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode()
     users = [
@@ -155,10 +139,6 @@ def seed_demo_users(cur):
     )
     print(f"  {len(users)} demo users seeded (password: password123)")
 
-
-# ------------------------------------------------------------------
-# Main
-# ------------------------------------------------------------------
 
 def main():
     print("=== Music Streaming DB — Seed Script ===\n")

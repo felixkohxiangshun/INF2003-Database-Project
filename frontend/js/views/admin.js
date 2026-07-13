@@ -1,9 +1,3 @@
-/* ============================================================
-   Resonate — Admin view
-   Full CRUD for Tracks, Artists, Albums, Genres.
-   Also shows the audit log (populated by trg_audit_users).
-   ============================================================ */
-
 async function renderAdmin() {
   const wrap = el("div", {});
 
@@ -12,7 +6,6 @@ async function renderAdmin() {
       el("h1", {}, "Admin"),
       el("p",  {}, "Create, edit, and delete catalogue entries. Changes sync to Neo4j automatically.")));
 
-  // Tab bar
   const tabs   = ["Tracks", "Artists", "Albums", "Genres", "Audit Log"];
   const tabBar = el("div", { class: "admin-tabs" });
   const panels = {};
@@ -52,10 +45,6 @@ async function renderAdmin() {
   return wrap;
 }
 
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
 function adminLoading(panel) {
   panel.innerHTML = "";
   panel.append(el("p", { class: "admin-loading" }, "Loading…"));
@@ -84,17 +73,12 @@ function labelledSelect(labelText, options, currentVal) {
     sel);
 }
 
-// ---------------------------------------------------------------------------
-// Tracks panel
-// ---------------------------------------------------------------------------
-
 async function loadTracks(panel) {
   adminLoading(panel);
   try {
     const genres = await API._req("GET", "/admin/genres").catch(() => []);
     panel.innerHTML = "";
 
-    // ── Create form ──
     const titleWrap  = labelledInput("Title",        { type: "text",   placeholder: "Track title", required: "" });
     const durWrap    = labelledInput("Duration (s)", { type: "number", placeholder: "e.g. 214",    min: "1", required: "" });
     const albumWrap  = labelledInput("Album ID",     { type: "number", placeholder: "Album ID",    required: "" });
@@ -151,7 +135,6 @@ async function loadTracks(panel) {
 
     panel.append(el("div", { class: "admin-section" }, el("h3", {}, "Add Track"), createForm));
 
-    // ── Search + table ──
     let searchTimer = null;
     const searchInput = el("input", {
       type: "text", placeholder: "Search tracks by title, artist or album…",
@@ -230,10 +213,6 @@ async function openEditTrack(track, genres, onSave) {
         el("button", { class: "btn btn--primary btn--sm", onClick: () => form.requestSubmit() }, "Save"))));
   document.body.append(overlay);
 }
-
-// ---------------------------------------------------------------------------
-// Artists panel
-// ---------------------------------------------------------------------------
 
 async function loadArtists(panel) {
   adminLoading(panel);
@@ -323,10 +302,6 @@ async function loadArtists(panel) {
   } catch (err) { adminError(panel, err.message); }
 }
 
-// ---------------------------------------------------------------------------
-// Albums panel
-// ---------------------------------------------------------------------------
-
 async function loadAlbums(panel) {
   adminLoading(panel);
   try {
@@ -337,7 +312,6 @@ async function loadAlbums(panel) {
     const titleInput  = titleWrap.querySelector("input");
     const dateInput   = dateWrap.querySelector("input");
 
-    // Artist search widget — queries server on each keystroke
     let selectedArtistId = null;
     let searchTimer = null;
     const artistWrap = el("div", { class: "field", style: "position:relative" });
@@ -404,7 +378,6 @@ async function loadAlbums(panel) {
     panel.append(
       el("div", { class: "admin-section" }, el("h3", {}, "Add Album"), createForm));
 
-    // Albums lookup — search an artist to see their albums
     const albumResults = el("div", {});
     let lookupTimer = null;
     const lookupInput = el("input", {
@@ -455,10 +428,6 @@ async function loadAlbums(panel) {
   } catch (err) { adminError(panel, err.message); }
 }
 
-// ---------------------------------------------------------------------------
-// Genres panel
-// ---------------------------------------------------------------------------
-
 async function loadGenres(panel) {
   adminLoading(panel);
   try {
@@ -495,7 +464,7 @@ async function loadGenres(panel) {
 
     panel.append(el("div", { class: "admin-section" }, el("h3", {}, "Add Genre"), createForm));
 
-    // Client-side search (113 genres — no need for server round-trip)
+    // filters client-side since the genre list is small enough to not need a server round-trip
     let filterTimer = null;
     const searchInput = el("input", {
       type: "text", placeholder: "Filter genres…",
@@ -525,21 +494,12 @@ async function loadGenres(panel) {
   } catch (err) { adminError(panel, err.message); }
 }
 
-// ---------------------------------------------------------------------------
-// Audit log panel  (populated by trg_audit_users)
-// ---------------------------------------------------------------------------
-
+// audit log is populated by trg_audit_users
 async function loadAuditLog(panel) {
   adminLoading(panel);
   try {
     const rows = await API._req("GET", "/admin/audit-log");
     panel.innerHTML = "";
-
-    panel.append(
-      el("div", { class: "admin-note" },
-        "Every change to a user's email, username, or password is recorded here by ",
-        el("code", {}, "trg_audit_users"),
-        ". Update your profile to generate a new entry."));
 
     if (!rows.length) {
       panel.append(el("div", { class: "empty" },

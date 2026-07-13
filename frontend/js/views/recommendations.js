@@ -1,10 +1,3 @@
-/* ============================================================
-   Resonate — Recommendations view (For You)
-   Two sections:
-     1. Tracks recommended via Neo4j genre affinity
-     2. Artists recommended via Neo4j SIMILAR_TO traversal
-   ============================================================ */
-
 async function renderRecommend() {
   const [{ recommendations }, { artists }] = await Promise.all([
     API.recommend(),
@@ -19,7 +12,6 @@ async function renderRecommend() {
   const wrap = el("div", {});
   wrap.append(head);
 
-  // ── Track recommendations ─────────────────────────────────────────────
   const trackSection = el("div", { class: "rec-section" });
   if (!recommendations.length) {
     trackSection.append(el("div", { class: "empty" },
@@ -37,7 +29,6 @@ async function renderRecommend() {
   }
   wrap.append(trackSection);
 
-  // ── Artist recommendations ────────────────────────────────────────────
   const artistSection = el("div", { class: "rec-section" });
   artistSection.append(el("p", { class: "rec-section__label" },
     "Artists · similar_to traversal · neo4j"));
@@ -51,7 +42,6 @@ async function renderRecommend() {
     artists.forEach((a) => {
       const followBtn = el("button", { class: "btn btn--ghost btn--sm artist-card__follow" }, "Follow");
 
-      // Check status, then wire toggle
       API.followStatus(a.artist_id).then(({ following }) => {
         followBtn.textContent = following ? "✓ Following" : "Follow";
         followBtn.classList.toggle("btn--active", following);

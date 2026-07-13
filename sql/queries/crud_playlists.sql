@@ -1,20 +1,12 @@
--- =============================================================
 -- M2 SQL Developer — Playlist CRUD Queries
--- Project: Music Streaming Database
--- Target DB: PostgreSQL
 -- Placeholder style: psycopg2 named parameters
--- =============================================================
 
--- -------------------------------------------------------------
 -- 1. CREATE PLAYLIST
--- -------------------------------------------------------------
 INSERT INTO playlists (user_id, name, is_public)
 VALUES (%(user_id)s, %(name)s, COALESCE(%(is_public)s, TRUE))
 RETURNING playlist_id, user_id, name, is_public, created_at;
 
--- -------------------------------------------------------------
 -- 2. LIST PLAYLISTS OWNED BY USER
--- -------------------------------------------------------------
 SELECT
     p.playlist_id,
     p.user_id,
@@ -28,9 +20,7 @@ WHERE p.user_id = %(user_id)s
 GROUP BY p.playlist_id, p.user_id, p.name, p.is_public, p.created_at
 ORDER BY p.created_at DESC;
 
--- -------------------------------------------------------------
 -- 3. LIST PUBLIC PLAYLISTS
--- -------------------------------------------------------------
 SELECT
     p.playlist_id,
     p.name,
@@ -46,10 +36,8 @@ GROUP BY p.playlist_id, p.name, p.created_at, u.user_id, u.username
 ORDER BY p.created_at DESC
 LIMIT %(limit)s OFFSET %(offset)s;
 
--- -------------------------------------------------------------
 -- 4. GET PLAYLIST DETAILS WITH TRACKS
--- Allows owner to view private playlist; everyone can view public.
--- -------------------------------------------------------------
+-- Owner can view a private playlist; everyone can view public ones.
 SELECT
     p.playlist_id,
     p.name AS playlist_name,
@@ -75,9 +63,7 @@ WHERE p.playlist_id = %(playlist_id)s
   AND (p.is_public = TRUE OR p.user_id = %(requesting_user_id)s)
 ORDER BY pt.position ASC NULLS LAST;
 
--- -------------------------------------------------------------
 -- 5. UPDATE PLAYLIST NAME / VISIBILITY
--- -------------------------------------------------------------
 UPDATE playlists
 SET
     name = COALESCE(%(name)s, name),
@@ -86,18 +72,13 @@ WHERE playlist_id = %(playlist_id)s
   AND user_id = %(user_id)s
 RETURNING playlist_id, user_id, name, is_public, created_at;
 
--- -------------------------------------------------------------
 -- 6. DELETE PLAYLIST
--- -------------------------------------------------------------
 DELETE FROM playlists
 WHERE playlist_id = %(playlist_id)s
   AND user_id = %(user_id)s
 RETURNING playlist_id, name;
 
--- -------------------------------------------------------------
 -- 7. APPEND TRACK TO END OF PLAYLIST
--- Avoids position conflicts by calculating next position.
--- -------------------------------------------------------------
 INSERT INTO playlist_tracks (playlist_id, track_id, position)
 SELECT
     %(playlist_id)s,
@@ -108,11 +89,9 @@ WHERE playlist_id = %(playlist_id)s
 ON CONFLICT (playlist_id, track_id) DO NOTHING
 RETURNING playlist_id, track_id, position;
 
--- -------------------------------------------------------------
 -- 8. INSERT TRACK AT SPECIFIC POSITION
 -- Two-phase position shift avoids UNIQUE(playlist_id, position) conflicts.
 -- Run inside a transaction.
--- -------------------------------------------------------------
 UPDATE playlist_tracks
 SET position = position + 100000
 WHERE playlist_id = %(playlist_id)s
@@ -127,10 +106,8 @@ SET position = position - 99999
 WHERE playlist_id = %(playlist_id)s
   AND position >= 100000;
 
--- -------------------------------------------------------------
 -- 9. REMOVE TRACK FROM PLAYLIST AND COMPACT POSITIONS
 -- Run inside a transaction.
--- -------------------------------------------------------------
 WITH removed AS (
     DELETE FROM playlist_tracks
     WHERE playlist_id = %(playlist_id)s
@@ -146,11 +123,9 @@ WITH removed AS (
 )
 SELECT * FROM removed;
 
--- -------------------------------------------------------------
 -- 10. MOVE TRACK TO A NEW POSITION
--- Simple and safe method using row_number rebuild.
+-- Rebuilds ordering with row_number rather than shifting individual rows.
 -- Run inside a transaction.
--- -------------------------------------------------------------
 WITH current_rows AS (
     SELECT playlist_id, track_id, position
     FROM playlist_tracks

@@ -1,29 +1,11 @@
--- =============================================================
 -- INF2003 Music Streaming App — Triggers
 -- Author : M1 (Database Architect)
 -- Run    : psql -d music_streaming -f sql/triggers.sql
--- =============================================================
 
--- -------------------------------------------------------------
--- TRIGGER: trg_increment_play_count
---
--- Purpose:
---   Keeps tracks.play_count in sync without requiring a full
---   COUNT(*) query across play_history every time we display
---   a track's popularity.
---
--- When it fires:
---   AFTER every INSERT into play_history (one row at a time).
---
--- What it does:
---   Increments play_count by 1 on the track that was just played.
---
--- Design note:
---   play_count is intentionally denormalised. The authoritative
---   count is always derivable from play_history — this counter
---   exists purely for read performance on high-traffic queries
---   like "top 50 most played tracks".
--- -------------------------------------------------------------
+-- trg_increment_play_count: keeps tracks.play_count in sync so we don't need
+-- a full COUNT(*) over play_history for high-traffic queries like "top 50
+-- most played tracks". play_count is intentionally denormalised — the
+-- authoritative count is always derivable from play_history.
 
 CREATE OR REPLACE FUNCTION fn_increment_play_count()
 RETURNS TRIGGER AS $$
@@ -72,31 +54,11 @@ CREATE OR REPLACE TRIGGER trg_audit_users
     EXECUTE FUNCTION fn_audit_user_changes();
 
 
--- -------------------------------------------------------------
--- TRIGGER: trg_prevent_duplicate_playlist_track
---
--- Purpose:
---   Enforces the business rule that a track can appear at most
---   once in a given playlist, regardless of which application or
---   user submits the INSERT.
---
--- When it fires:
---   BEFORE every INSERT into playlist_tracks (row level).
---
--- What it does:
---   Checks whether the (playlist_id, track_id) pair already
---   exists. If it does, raises a database-level exception with
---   SQLSTATE P0001 so the calling code receives a clear, typed
---   error rather than a silent no-op.
---
--- Design note:
---   A unique constraint on (playlist_id, track_id) would prevent
---   duplicates too, but produces a generic "unique_violation"
---   error that is harder to distinguish from other constraint
---   failures. This trigger raises a named exception
---   ('duplicate_playlist_track') so the API layer can return
---   a precise 409 response without inspecting raw SQL state.
--- -------------------------------------------------------------
+-- trg_prevent_duplicate_playlist_track: blocks a track from being added to
+-- the same playlist twice. A unique constraint would also stop duplicates,
+-- but only raises a generic "unique_violation" — this trigger raises a named
+-- exception ('duplicate_playlist_track') so the API layer can map it to a
+-- precise 409 response without inspecting raw SQL state.
 
 CREATE OR REPLACE FUNCTION fn_prevent_duplicate_playlist_track()
 RETURNS TRIGGER AS $$
@@ -127,30 +89,11 @@ CREATE OR REPLACE TRIGGER trg_prevent_duplicate_playlist_track
     EXECUTE FUNCTION fn_prevent_duplicate_playlist_track();
 
 
--- -------------------------------------------------------------
--- TRIGGER: trg_audit_artists / _albums / _tracks / _genres
+-- trg_audit_artists / _albums / _tracks / _genres: extend audit coverage to
+-- the catalogue tables, logging INSERT/UPDATE(name or title only)/DELETE
+-- into audit_log. play_count bumps trigger an UPDATE on tracks but are
+-- ignored here since only title changes are logged.
 --
--- Purpose:
---   Extends audit coverage to all catalogue tables.
---   Records every INSERT, UPDATE (name/title only), and DELETE
---   on artists, albums, tracks, and genres into audit_log.
---
--- When it fires:
---   AFTER INSERT OR UPDATE OR DELETE on each catalogue table.
---
--- What it does:
---   INSERT  → field_name = 'created',  new_value  = name or title
---   UPDATE  → field_name = 'name'/'title', old and new values
---   DELETE  → field_name = 'deleted',  old_value  = name or title
---
--- Design note:
---   A single generic function (fn_audit_catalogue) handles all
---   four tables by branching on TG_TABLE_NAME and TG_OP.
---   play_count bumps (via trg_increment_play_count) trigger an
---   UPDATE on tracks but are silently ignored here because only
---   title changes are logged.
--- -------------------------------------------------------------
-
 -- PL/pgSQL evaluates all record field references at parse time, so a single
 -- generic function using CASE TG_TABLE_NAME to branch field access fails when
 -- the triggering table doesn't have that column. Four separate functions are

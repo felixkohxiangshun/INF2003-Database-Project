@@ -1,8 +1,3 @@
-/* ============================================================
-   Resonate — Brand + Buttons + Form fields (shared)
-   ============================================================ */
-
-/* ---------- Brand ---------- */
 .brand {
   display: flex;
   align-items: center;
@@ -16,7 +11,6 @@
 .brand--lg .brand__name { font-size: 2rem; }
 .brand--lg .brand__mark { font-size: 1.4rem; }
 
-/* ---------- Buttons ---------- */
 .btn {
   appearance: none;
   border: 1px solid transparent;
@@ -40,7 +34,6 @@
 .btn--block { width: 100%; display: block; }
 .btn--danger { color: var(--coral); border-color: var(--coral-soft); background: var(--coral-soft); }
 
-/* ---------- Form fields ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field__label {
   font-size: 0.74rem;

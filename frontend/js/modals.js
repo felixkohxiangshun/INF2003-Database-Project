@@ -1,8 +1,3 @@
-/* ============================================================
-   Resonate — Modal helpers (create/rename/delete playlist,
-              add track to playlist)
-   ============================================================ */
-
 function modal(node) {
   const backdrop = el("div", { class: "modal-backdrop", onClick: (e) => { if (e.target === backdrop) backdrop.remove(); } }, node);
   document.body.append(backdrop);
@@ -63,7 +58,6 @@ async function openArtistModal(artistId) {
   const data = await API.artist(artistId);
   if (!data) { toast("Could not load artist", "error"); return; }
 
-  // Flatten all tracks across all albums
   const allTracks = (data.albums || []).flatMap((al) =>
     (al.tracks || []).map((t) => ({ ...t, album: al.album_title }))
   );

@@ -27,9 +27,6 @@ def session_user_id() -> int:
     return flask_session.get("user_id", -1)
 
 
-# ---------------------------------------------------------------------------
-# GET /playlists
-# ---------------------------------------------------------------------------
 @bp.route("/playlists", methods=["GET"])
 def list_public_playlists():
     try:
@@ -59,9 +56,6 @@ def list_public_playlists():
     return jsonify(_serialize(rows))
 
 
-# ---------------------------------------------------------------------------
-# GET /playlists/mine
-# ---------------------------------------------------------------------------
 @bp.route("/playlists/mine", methods=["GET"])
 @auth_required
 def my_playlists():
@@ -84,9 +78,6 @@ def my_playlists():
     return jsonify(_serialize(rows))
 
 
-# ---------------------------------------------------------------------------
-# POST /playlists
-# ---------------------------------------------------------------------------
 @bp.route("/playlists", methods=["POST"])
 @auth_required
 def create_playlist():
@@ -108,9 +99,6 @@ def create_playlist():
     return jsonify(_serialize(rows[0])), 201
 
 
-# ---------------------------------------------------------------------------
-# GET /playlists/<id>
-# ---------------------------------------------------------------------------
 @bp.route("/playlists/<int:playlist_id>", methods=["GET"])
 def get_playlist(playlist_id: int):
     requesting_user = session_user_id()
@@ -173,9 +161,6 @@ def get_playlist(playlist_id: int):
     return jsonify({**playlist_meta, "tracks": tracks})
 
 
-# ---------------------------------------------------------------------------
-# PUT /playlists/<id>
-# ---------------------------------------------------------------------------
 @bp.route("/playlists/<int:playlist_id>", methods=["PUT"])
 @auth_required
 def update_playlist(playlist_id: int):
@@ -204,9 +189,6 @@ def update_playlist(playlist_id: int):
     return jsonify(_serialize(rows[0]))
 
 
-# ---------------------------------------------------------------------------
-# DELETE /playlists/<id>
-# ---------------------------------------------------------------------------
 @bp.route("/playlists/<int:playlist_id>", methods=["DELETE"])
 @auth_required
 def delete_playlist(playlist_id: int):
@@ -220,9 +202,6 @@ def delete_playlist(playlist_id: int):
     return jsonify({"message": "Playlist deleted"})
 
 
-# ---------------------------------------------------------------------------
-# POST /playlists/<id>/tracks
-# ---------------------------------------------------------------------------
 @bp.route("/playlists/<int:playlist_id>/tracks", methods=["POST"])
 @auth_required
 def add_track(playlist_id: int):
@@ -292,11 +271,8 @@ def add_track(playlist_id: int):
     return jsonify(rows[0]), 201
 
 
-# ---------------------------------------------------------------------------
-# PUT /playlists/<id>/tracks/<track_id>/position
-# Two-phase ROW_NUMBER() reorder in a single transaction — the +100000 offset
-# avoids unique constraint collisions during the intermediate update.
-# ---------------------------------------------------------------------------
+# Two-phase ROW_NUMBER() reorder in one transaction; the +100000 offset avoids
+# unique constraint collisions during the intermediate update.
 @bp.route("/playlists/<int:playlist_id>/tracks/<int:track_id>/position", methods=["PUT"])
 @auth_required
 def move_track(playlist_id: int, track_id: int):
@@ -376,9 +352,6 @@ def move_track(playlist_id: int, track_id: int):
     return jsonify({"tracks": sorted(rows, key=lambda r: r["position"])})
 
 
-# ---------------------------------------------------------------------------
-# DELETE /playlists/<id>/tracks/<track_id>
-# ---------------------------------------------------------------------------
 @bp.route("/playlists/<int:playlist_id>/tracks/<int:track_id>", methods=["DELETE"])
 @auth_required
 def remove_track(playlist_id: int, track_id: int):

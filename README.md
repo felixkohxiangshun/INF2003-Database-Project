@@ -34,7 +34,7 @@ A full-stack music streaming and recommendation application built for INF2003 Da
 INF2003-Database-Project/
 ├── sql/
 │   ├── schema.sql                  Table definitions (9 tables + audit_log)
-│   ├── triggers.sql                3 triggers (see below)
+│   ├── triggers.sql                7 triggers (see below)
 │   ├── seed.py                     Loads Kaggle dataset into PostgreSQL
 │   └── queries/
 │       ├── crud_users.sql
@@ -80,7 +80,13 @@ INF2003-Database-Project/
 │   │   ├── playlists.css
 │   │   ├── profile.css
 │   │   ├── admin.css               Admin panel
-│   │   └── ...
+│   │   ├── auth.css                Login/register forms
+│   │   ├── graph.css               Artist relationship graph
+│   │   ├── explore.css             Artist explorer
+│   │   ├── recommendations.css     Recommendations view
+│   │   ├── player.css              Audio player bar
+│   │   ├── modal.css               Add-to-playlist modal
+│   │   └── responsive.css          Breakpoints
 │   └── js/
 │       ├── config.js               API client + mock fallback
 │       ├── helpers.js              DOM builder (el), formatters, toast
@@ -169,23 +175,7 @@ Download **Neo4j Desktop** from https://neo4j.com/download/ — this is the easi
 
 ## Step-by-Step Setup
 
-### 1. Clone the repository
-
-**macOS:**
-```bash
-git clone <repo-url>
-cd INF2003-Database-Project
-```
-
-**Windows (Command Prompt or PowerShell):**
-```cmd
-git clone <repo-url>
-cd INF2003-Database-Project
-```
-
----
-
-### 2. Create a Python virtual environment
+### 1. Create a Python virtual environment
 
 **macOS:**
 ```bash
@@ -212,7 +202,7 @@ When active, your terminal prompt will show `(venv)`. To deactivate later, run `
 
 ---
 
-### 3. Install Python dependencies
+### 2. Install Python dependencies
 
 **macOS and Windows (with venv active):**
 ```bash
@@ -230,7 +220,7 @@ Dependencies installed:
 
 ---
 
-### 4. Configure environment variables
+### 3. Configure environment variables
 
 **macOS:**
 ```bash
@@ -282,7 +272,7 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 ---
 
-### 5. Create the PostgreSQL database
+### 4. Create the PostgreSQL database
 
 **macOS:**
 ```bash
@@ -301,7 +291,7 @@ createdb -U postgres music_streaming
 
 ---
 
-### 6. Apply the schema and triggers
+### 5. Apply the schema and triggers
 
 **macOS:**
 ```bash
@@ -321,14 +311,18 @@ psql -U postgres -d music_streaming -f sql/triggers.sql
 This creates:
 - **9 tables:** `users`, `genres`, `artists`, `albums`, `tracks`, `play_history`, `playlists`, `playlist_tracks`, `user_follows_artist`
 - **1 audit table:** `audit_log`
-- **3 triggers:**
+- **7 triggers:**
   - `trg_increment_play_count` — increments `tracks.play_count` after every play (denormalised aggregate)
   - `trg_audit_users` — logs email/username/password changes to `audit_log`
   - `trg_prevent_duplicate_playlist_track` — blocks duplicate tracks in a playlist at the DB level
+  - `trg_audit_artists` — logs artist field changes to `audit_log`
+  - `trg_audit_albums` — logs album field changes to `audit_log`
+  - `trg_audit_tracks` — logs track field changes to `audit_log`
+  - `trg_audit_genres` — logs genre field changes to `audit_log`
 
 ---
 
-### 7. Download the dataset
+### 6. Download the dataset
 
 Download the **Spotify Tracks Dataset** from Kaggle:
 https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset
@@ -340,7 +334,7 @@ data/dataset.csv
 
 ---
 
-### 8. Seed PostgreSQL
+### 7. Seed PostgreSQL
 
 **macOS and Windows (with venv active):**
 ```bash
@@ -352,7 +346,7 @@ This parses `dataset.csv` and loads artists, albums, genres, and tracks into Pos
 
 ---
 
-### 9. Set up Neo4j
+### 8. Set up Neo4j
 
 **a) Create constraints and indexes**
 
@@ -385,11 +379,11 @@ python3 nosql/sync.py
 python nosql/sync.py
 ```
 
-This creates `Track`, `Artist`, and `User` nodes and `PERFORMED_BY` edges in Neo4j. The Flask app also runs this automatically in the background on startup.
+This creates `Track`, `Artist`, and `User` nodes, and `PERFORMED_BY`, `LISTENED_TO`, `FOLLOWS`, and `SIMILAR_TO` edges in Neo4j. The Flask app also runs this automatically in the background on startup.
 
 ---
 
-### 10. Run the application
+### 9. Run the application
 
 **macOS:**
 ```bash
@@ -458,14 +452,14 @@ Or register a new account from the login page.
 | `(User)-[:LISTENED_TO]->(Track)` | Listening history with count + last_played |
 | `(User)-[:FOLLOWS]->(Artist)` | Follow relationship with followed_at |
 | `(Track)-[:PERFORMED_BY]->(Artist)` | Track authorship |
-| `(Track)-[:SIMILAR_TO]->(Track)` | Similarity edges (sync.py) |
+| `(Artist)-[:SIMILAR_TO]-(Artist)` | Shared-genre similarity, weighted by `similarity_score` (sync.py) |
 
 ### Dual-Write Pattern
 
 Every write that affects both databases is done synchronously in the same request:
-- `POST /play` → INSERT into `play_history` (Postgres) + MERGE `LISTENED_TO` edge (Neo4j)
-- `POST /artists/<id>/follow` → INSERT into `user_follows_artist` (Postgres) + MERGE `FOLLOWS` edge (Neo4j)
-- `PUT /auth/me` → UPDATE `users` (Postgres) + SET `u.username` on User node (Neo4j)
+- `POST /play` (`backend/routes/tracks.py`) → INSERT into `play_history` (Postgres) + MERGE `LISTENED_TO` edge (Neo4j)
+- `POST /artists/<id>/follow` (`backend/routes/tracks.py`) → INSERT into `user_follows_artist` (Postgres) + MERGE `FOLLOWS` edge (Neo4j)
+- `PUT /auth/me` (`backend/routes/auth.py`) → UPDATE `users` (Postgres) + SET `u.username` on User node (Neo4j)
 
 ---
 
@@ -475,21 +469,39 @@ Every write that affects both databases is done synchronously in the same reques
 |---|---|---|
 | POST | `/auth/register` | Create account |
 | POST | `/auth/login` | Login |
-| GET/PUT | `/auth/me` | Get / update profile |
+| POST | `/auth/logout` | Logout |
+| GET | `/auth/me` | Get current session user |
+| GET | `/auth/profile` | Get profile with listening stats (plays, followed artists, top genre) |
+| PUT | `/auth/me` | Update profile |
 | PUT | `/auth/password` | Change password |
 | GET | `/tracks` | List / search tracks |
 | GET | `/tracks/<id>` | Track detail with user + global plays |
-| POST | `/play` | Log a play (triggers + Neo4j write) |
-| GET/POST/DELETE | `/artists/<id>/follow` | Follow status / follow / unfollow |
+| GET | `/artists` | List artists |
+| GET | `/artists/<id>` | Artist detail |
+| GET | `/artists/<id>/follow` | Follow status |
+| POST | `/artists/<id>/follow` | Follow artist |
+| DELETE | `/artists/<id>/follow` | Unfollow artist |
+| GET | `/genres` | List genres |
+| POST | `/play` | Log a play (trigger + Neo4j write) |
+| GET | `/history` | User play history |
+| GET | `/stats` | Top tracks + play counts |
 | GET/POST | `/playlists` | List public / create playlist |
 | GET | `/playlists/mine` | My playlists |
 | GET/PUT/DELETE | `/playlists/<id>` | Get / update / delete playlist |
-| POST/DELETE | `/playlists/<id>/tracks` | Add / remove track |
-| GET | `/recommend` | Neo4j collaborative filtering |
-| GET | `/stats` | Top tracks + play counts |
+| POST | `/playlists/<id>/tracks` | Add track |
+| PUT | `/playlists/<id>/tracks/<track_id>/position` | Reorder track |
+| DELETE | `/playlists/<id>/tracks/<track_id>` | Remove track |
+| GET | `/recommend` | Neo4j collaborative filtering (track recommendations) |
+| GET | `/recommend/artists` | Neo4j collaborative filtering (artist recommendations) |
+| GET | `/artists/path` | Shortest path between two artists |
+| GET | `/graph/user` | Full graph neighbourhood for the current user |
 | GET | `/insights/top-by-genre` | Top 5 per genre (CTE + window function) |
+| GET | `/artists/<id>/related` | Related artists via shared followers (collaborative filtering) |
+| GET | `/playlists/<id>/completionists` | Users who've played every track in a playlist (relational division) |
 | GET | `/artists/top-performers` | Artists above genre average (HAVING subquery) |
-| GET/POST | `/admin/tracks` | Admin: list / create tracks |
-| PUT/DELETE | `/admin/tracks/<id>` | Admin: edit / delete track |
+| GET/POST | `/admin/genres` | Admin: list / create genres |
+| POST/PUT/DELETE | `/admin/artists[/<id>]` | Admin: create / edit / delete artist |
+| POST/PUT/DELETE | `/admin/albums[/<id>]` | Admin: create / edit / delete album |
+| POST/PUT/DELETE | `/admin/tracks[/<id>]` | Admin: create / edit / delete track |
 | GET | `/admin/audit-log` | View audit log entries |
 | GET | `/health` | PostgreSQL + Neo4j health check |

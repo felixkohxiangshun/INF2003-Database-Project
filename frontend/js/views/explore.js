@@ -1,17 +1,10 @@
-/* ============================================================
-   Resonate — Explore view: Artist connection path finder
-   Uses Neo4j shortestPath() to find how two artists are
-   connected via SIMILAR_TO edges. Demonstrates a graph query
-   with no practical SQL equivalent.
-   ============================================================ */
-
+// Uses Neo4j shortestPath() to find how two artists connect via SIMILAR_TO edges — no practical SQL equivalent
 async function renderExplore() {
   const head = el("div", { class: "page-head" },
     el("p", { class: "eyebrow" }, "graph traversal · neo4j shortestpath()"),
     el("h1", {}, "Artist Connections"),
     el("p", {}, "Discover how any two artists are linked through shared genre similarity."));
 
-  // Load artist list from PostgreSQL for the dropdowns
   const { artists } = await API.artists();
 
   const fromSelect = el("select");

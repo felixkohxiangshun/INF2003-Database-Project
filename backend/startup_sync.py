@@ -14,8 +14,6 @@ log = logging.getLogger(__name__)
 BATCH_SIZE = 500
 
 
-# ── helpers ────────────────────────────────────────────────────────────────────
-
 def _pg_connect():
     return psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
@@ -31,8 +29,6 @@ def _run_batch(session, cypher, rows):
     for i in range(0, len(rows), BATCH_SIZE):
         session.run(cypher, rows=rows[i : i + BATCH_SIZE])
 
-
-# ── sync steps ─────────────────────────────────────────────────────────────────
 
 def _ensure_constraints(session):
     for stmt in [
@@ -168,8 +164,6 @@ def _seed_similar_to(session):
     """)
     log.info("[sync] SIMILAR_TO computed")
 
-
-# ── entry point ────────────────────────────────────────────────────────────────
 
 def _run_sync(driver):
     log.info("[sync] Background Neo4j sync starting…")

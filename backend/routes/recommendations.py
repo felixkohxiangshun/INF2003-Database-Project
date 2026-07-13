@@ -36,7 +36,6 @@ def _enrich_tracks(track_ids: list[int], scores: dict[int, float]) -> list[dict]
         {"ids": track_ids},
     )
 
-    # Attach score and preserve order
     track_map = {r["track_id"]: r for r in rows}
     result = []
     for tid in track_ids:
@@ -82,16 +81,13 @@ def _sql_fallback(user_id: int, limit: int = 10) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-# ---------------------------------------------------------------------------
-# GET /recommend
-# ---------------------------------------------------------------------------
 @bp.route("/recommend", methods=["GET"])
 @auth_required
 def recommend():
     user_id = g.user_id
     recommendations = []
 
-    # ── 1. Collaborative filtering (primary) ──────────────────────────────
+    # 1. collaborative filtering (primary)
     collab = neo4j_query(
         """
         MATCH (u:User {user_id: $user_id})-[:LISTENED_TO]->(t:Track)
@@ -107,7 +103,7 @@ def recommend():
         scores = {r["track_id"]: r["score"] for r in collab}
         recommendations = _enrich_tracks(list(scores.keys()), scores)
 
-    # ── 2. Genre affinity (top up if collaborative < 5) ───────────────────
+    # 2. genre affinity (top up if collaborative < 5)
     if len(recommendations) < 5:
         genre_recs = neo4j_query(
             """
@@ -129,7 +125,7 @@ def recommend():
             scores = {r["track_id"]: r["score"] for r in genre_recs if r["track_id"] not in existing_ids}
             recommendations += _enrich_tracks(list(scores.keys()), scores)
 
-    # ── 3. Artist similarity (top up if still < 5) ────────────────────────
+    # 3. artist similarity (top up if still < 5)
     if len(recommendations) < 5:
         artist_recs = neo4j_query(
             """
@@ -147,7 +143,7 @@ def recommend():
             scores = {r["track_id"]: r["score"] for r in artist_recs if r["track_id"] not in existing_ids}
             recommendations += _enrich_tracks(list(scores.keys()), scores)
 
-    # ── 4. SQL fallback ────────────────────────────────────────────────────
+    # 4. SQL fallback
     if len(recommendations) < 5:
         existing_ids = {r["track_id"] for r in recommendations}
         fallback = _sql_fallback(user_id, limit=10)

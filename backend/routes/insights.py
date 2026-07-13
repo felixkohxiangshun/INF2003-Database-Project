@@ -1,27 +1,4 @@
-"""Insights Routes — Complex / Nested Query Endpoints
-
-Exposes the advanced SQL queries from sql/queries/nested_queries.sql
-as callable API endpoints, demonstrating window functions, relational
-division, correlated sub-queries, and CTE patterns.
-
-Endpoints
----------
-GET /insights/top-by-genre
-    Top 5 most-played tracks per genre this month.
-    Uses CTE + ROW_NUMBER() window function (nested_queries.sql #1).
-
-GET /artists/<id>/related
-    Artists followed by users who also follow the given artist —
-    collaborative filtering seed (nested_queries.sql #3).
-
-GET /playlists/<id>/completionists
-    Users who have listened to every track in a playlist —
-    relational division via double NOT EXISTS (nested_queries.sql #6).
-
-GET /artists/top-performers
-    Artists whose average track play_count beats their genre average —
-    nested aggregate with HAVING (nested_queries.sql #7).
-"""
+"""Insights routes — exposes the queries from sql/queries/nested_queries.sql as endpoints."""
 
 from __future__ import annotations
 
@@ -36,15 +13,10 @@ log = logging.getLogger(__name__)
 bp  = Blueprint("insights", __name__)
 
 
-# ---------------------------------------------------------------------------
-# GET /insights/top-by-genre
 # nested_queries.sql #1 — CTE + ROW_NUMBER() window function
-# ---------------------------------------------------------------------------
 
 @bp.route("/insights/top-by-genre", methods=["GET"])
 def top_by_genre():
-    """Return the top 5 most-played tracks per genre for the current calendar month.
-    Uses a CTE and ROW_NUMBER() window function partitioned by genre."""
     rows = query(
         """
         WITH monthly_track_plays AS (
@@ -78,7 +50,6 @@ def top_by_genre():
         ORDER  BY genre_name, genre_rank
         """
     )
-    # Group rows into { genre_name: [tracks] } for easier frontend consumption
     genres: dict = {}
     for r in rows:
         g = r["genre_name"] or "Unknown"
@@ -92,17 +63,11 @@ def top_by_genre():
     return jsonify({"genres": genres})
 
 
-# ---------------------------------------------------------------------------
-# GET /artists/<id>/related
-# nested_queries.sql #3 — collaborative filtering via shared followers
-# ---------------------------------------------------------------------------
+# nested_queries.sql #3 — collaborative filtering via shared followers, three-way
+# self-join on user_follows_artist
 
 @bp.route("/artists/<int:artist_id>/related", methods=["GET"])
 def related_artists(artist_id: int):
-    """Artists followed by users who also follow the given artist.
-    Surfaces artists frequently co-followed with the seed artist, ordered
-    by the number of shared followers. Uses a three-way self-join on
-    user_follows_artist."""
     if not query_one("SELECT 1 FROM artists WHERE artist_id = %(id)s", {"id": artist_id}):
         return jsonify({"error": "Artist not found"}), 404
 
@@ -128,16 +93,11 @@ def related_artists(artist_id: int):
     return jsonify({"artist_id": artist_id, "related": rows})
 
 
-# ---------------------------------------------------------------------------
-# GET /playlists/<id>/completionists
-# nested_queries.sql #6 — relational division (double NOT EXISTS)
-# ---------------------------------------------------------------------------
+# nested_queries.sql #6 — relational division via double NOT EXISTS
+# ("for all x, P(x)" has no direct SQL operator)
 
 @bp.route("/playlists/<int:playlist_id>/completionists", methods=["GET"])
 def playlist_completionists(playlist_id: int):
-    """Return users who have listened to every track in the given playlist.
-    Implements relational division via the double NOT EXISTS pattern — the
-    SQL equivalent of 'for all x, P(x)' which has no direct operator in SQL."""
     pl = query_one(
         "SELECT playlist_id, name FROM playlists WHERE playlist_id = %(pid)s AND is_public = TRUE",
         {"pid": playlist_id},
@@ -171,16 +131,11 @@ def playlist_completionists(playlist_id: int):
     })
 
 
-# ---------------------------------------------------------------------------
-# GET /artists/top-performers
-# nested_queries.sql #7 — nested aggregate with HAVING
-# ---------------------------------------------------------------------------
+# nested_queries.sql #7 — nested aggregate: correlated sub-query in HAVING
+# compares each artist's average plays against their genre's average
 
 @bp.route("/artists/top-performers", methods=["GET"])
 def top_performing_artists():
-    """Artists whose average track play_count exceeds the average for their genre.
-    Uses a correlated sub-query inside HAVING to compare each artist's average
-    against the overall genre average — a nested aggregate pattern."""
     rows = query(
         """
         SELECT
